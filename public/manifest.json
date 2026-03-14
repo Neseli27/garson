@@ -1,0 +1,14 @@
+{
+  "name": "Bistro 7 — Sanal Garson",
+  "short_name": "Garson AI",
+  "description": "Bistro 7 dijital garson uygulaması",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0704",
+  "theme_color": "#c9913a",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
