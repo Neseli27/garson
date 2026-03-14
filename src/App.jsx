@@ -488,9 +488,23 @@ const GarsonPanel = ({ onBack }) => {
   const [menu, setMenu]         = useState({});
   const [specials, setSpecials] = useState([]);
   const [loading, setLoading]   = useState(true);
-
+  const [now, setNow]           = useState(Date.now());
+  const [historySession, setHistorySession] = useState(null);
+  const [editSession, setEditSession]       = useState(null);
+  const [editAd, setEditAd]     = useState("");
+  const [editMasa, setEditMasa] = useState("");
   const [newItem, setNewItem]   = useState({ cat:"", name:"", price:"", desc:"", wait:"" });
   const [newSpec, setNewSpec]   = useState({ name:"", price:"", desc:"" });
+
+  // Süre sayacı
+  useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
+
+  const elapsed = (created_at) => {
+    if (!created_at) return "";
+    const diff = Math.floor((now - new Date(created_at).getTime()) / 60000);
+    if (diff < 60) return `${diff}dk`;
+    return `${Math.floor(diff/60)}sa ${diff%60}dk`;
+  };
 
   const fetchAll = useCallback(async () => {
     try {
@@ -498,30 +512,28 @@ const GarsonPanel = ({ onBack }) => {
         api.get("panel.php?type=all"),
         api.get("panel.php?type=menu"),
       ]);
-      if (panel.sessions)      setSessions(panel.sessions);
+      if (panel.sessions) setSessions(panel.sessions);
       if (panel.orders) {
-        const o = panel.orders.map(o => ({ ...o, urunler: typeof o.urunler==="string" ? JSON.parse(o.urunler) : o.urunler }));
-        setOrders(o);
+        setOrders(panel.orders.map(o => ({ ...o, urunler: typeof o.urunler==="string" ? JSON.parse(o.urunler) : o.urunler })));
       }
       if (panel.notifications) setNotifs(panel.notifications);
-      if (menuData.menu)       { setMenu(menuData.menu); setNewItem(p=>({...p,cat:Object.keys(menuData.menu)[0]||""})); }
-      if (menuData.specials)   setSpecials(menuData.specials);
+      if (menuData.menu) { setMenu(menuData.menu); setNewItem(p=>({...p,cat:Object.keys(menuData.menu)[0]||""})); }
+      if (menuData.specials) setSpecials(menuData.specials);
     } catch {}
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchAll(); const i = setInterval(fetchAll, 3000); return () => clearInterval(i); }, [fetchAll]);
 
-  // Yeni sipariş / bildirim sesi
   const prevCounts = useRef({ orders:0, notifs:0, pending:0 });
   useEffect(() => {
-    const pending = sessions.filter(s=>s.durum==="bekliyor").length;
-    const newOrds = orders.filter(o=>o.status==="yeni").length;
-    const newNots = notifs.filter(n=>!n.acked).length;
+    const pending  = sessions.filter(s=>s.durum==="bekliyor").length;
+    const newOrds  = orders.filter(o=>o.status==="yeni").length;
+    const newNots  = notifs.filter(n=>!n.acked).length;
     if (!loading) {
       if (pending > prevCounts.current.pending) playBeep(660,.3,2);
-      if (newOrds > prevCounts.current.orders)  { playBeep(880,.35,3); if(navigator.vibrate) navigator.vibrate([200,100,200,100,200]); }
-      if (newNots > prevCounts.current.notifs)  playBeep(550,.4,2);
+      if (newOrds  > prevCounts.current.orders)  { playBeep(880,.35,3); if(navigator.vibrate) navigator.vibrate([200,100,200,100,200]); }
+      if (newNots  > prevCounts.current.notifs)  playBeep(550,.4,2);
     }
     prevCounts.current = { orders:newOrds, notifs:newNots, pending };
   }, [sessions, orders, notifs, loading]);
@@ -535,45 +547,76 @@ const GarsonPanel = ({ onBack }) => {
     await api.post("order.php", { action:"update_status", id, status });
     fetchAll();
   };
-  const ack = async id => {
-    await api.post("panel.php", { action:"ack", id });
+  const ack = async id => { await api.post("panel.php", { action:"ack", id }); fetchAll(); };
+  const saveEdit = async () => {
+    if (!editSession) return;
+    await api.post("session.php", { action:"update_status", id:editSession.id, durum:editSession.durum });
+    setEditSession(null);
     fetchAll();
   };
 
-  const pending  = sessions.filter(s=>s.durum==="bekliyor");
-  const active   = sessions.filter(s=>s.durum==="aktif");
-  const others   = sessions.filter(s=>s.durum==="askida"||s.durum==="engelli");
-  const newCount = pending.length + orders.filter(o=>o.status==="yeni").length + notifs.filter(n=>!n.acked).length;
+  // Derived
+  const pending = sessions.filter(s=>s.durum==="bekliyor");
+  const active  = sessions.filter(s=>s.durum==="aktif");
+  const allCust = sessions.filter(s=>s.durum!=="bekliyor");
+  const newOrdsCount = orders.filter(o=>o.status==="yeni").length;
+  const unread  = notifs.filter(n=>!n.acked).length;
+  const newCount = pending.length + newOrdsCount + unread;
 
-  const AB = (label,onClick,col) => (
-    <button onClick={onClick} style={{ background:`rgba(${col},.15)`, border:`1px solid rgba(${col},.4)`, borderRadius:9, padding:"6px 13px", cursor:"pointer", fontSize:12.5, color:`rgb(${col})`, whiteSpace:"nowrap", fontFamily:"var(--fb)" }}>{label}</button>
+  // Günlük özet
+  const todayOrders = orders.filter(o => o.created_at?.startsWith(new Date().toISOString().slice(0,10)));
+  const todayCiro   = todayOrders.reduce((s,o)=>s+(o.toplam||0),0);
+  const urunSayim   = {};
+  todayOrders.forEach(o=>(o.urunler||[]).forEach(u=>{ urunSayim[u.ad]=(urunSayim[u.ad]||0)+u.adet; }));
+  const enCokSatan  = Object.entries(urunSayim).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+  // Müşteri geçmişi hesaplama
+  const customerHistory = (session) => {
+    const sOrders = orders.filter(o=>o.masa===parseInt(session.masa)&&o.musteri===session.ad);
+    const total   = sOrders.reduce((s,o)=>s+(o.toplam||0),0);
+    return { orders:sOrders, total };
+  };
+
+  const AB = (label, onClick, col) => (
+    <button onClick={onClick} style={{ background:`rgba(${col},.15)`, border:`1px solid rgba(${col},.4)`, borderRadius:9, padding:"6px 13px", cursor:"pointer", fontSize:12.5, color:`rgb(${col})`, whiteSpace:"nowrap", fontFamily:"var(--fb)", transition:"all .2s" }}>{label}</button>
+  );
+
+  const card = (extra={}) => ({ padding:"13px 15px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14, marginBottom:11, ...extra });
+
+  const TabBtn = ({ id, label, badge }) => (
+    <button onClick={()=>setTab(id)} style={{ flex:1, padding:"10px 4px", background:"none", border:"none", cursor:"pointer", fontFamily:"var(--fb)", fontSize:11.5, color:tab===id?"var(--gsoft)":"var(--muted)", borderBottom:tab===id?"2px solid var(--gold)":"2px solid transparent", transition:"all .2s", position:"relative", whiteSpace:"nowrap" }}>
+      {label}
+      {badge>0 && <span style={{ position:"absolute", top:5, right:"8%", minWidth:16, height:16, borderRadius:8, background:"var(--red)", color:"#fff", fontSize:9, display:"inline-flex", alignItems:"center", justifyContent:"center", fontWeight:700, padding:"0 3px" }}>{badge}</span>}
+    </button>
   );
 
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"var(--bg)" }}>
-      
-      <div style={{ padding:"14px 17px", borderBottom:"1px solid var(--bord)", display:"flex", alignItems:"center", gap:11, background:"var(--surf)", flexShrink:0 }}>
+      {/* Header */}
+      <div style={{ padding:"13px 16px", borderBottom:"1px solid var(--bord)", display:"flex", alignItems:"center", gap:11, background:"var(--surf)", flexShrink:0 }}>
         <button onClick={onBack} style={{ background:"none", border:"none", color:"var(--muted)", cursor:"pointer", fontSize:21 }}>←</button>
-        <div style={{ fontFamily:"var(--fh)", fontSize:18, color:"var(--cream)" }}>👨‍🍳 Yönetim Paneli</div>
-        {newCount>0 && <div style={{ marginLeft:"auto", background:"var(--red)", color:"#fff", borderRadius:20, padding:"3px 13px", fontSize:12, fontWeight:600, animation:"blink 1.4s ease-in-out infinite" }}>{newCount} YENİ</div>}
+        <div style={{ fontFamily:"var(--fh)", fontSize:17, color:"var(--cream)" }}>👨‍🍳 Yönetim Paneli</div>
+        {newCount>0 && <div style={{ marginLeft:"auto", background:"var(--red)", color:"#fff", borderRadius:20, padding:"3px 12px", fontSize:12, fontWeight:600, animation:"blink 1.4s ease-in-out infinite" }}>{newCount} YENİ</div>}
       </div>
 
-      <div style={{ display:"flex", borderBottom:"1px solid var(--bord)", background:"rgba(22,14,8,.9)", flexShrink:0 }}>
-        {[["bekleyen","⏳ Bekleyen",pending.length],["masalar","🪑 Masalar",orders.filter(o=>o.status==="yeni").length],["bildirim","🔔 Bildirim",notifs.filter(n=>!n.acked).length],["admin","⚙️ Admin",0]].map(([id,label,badge])=>(
-          <button key={id} onClick={()=>setTab(id)} style={{ flex:1, padding:"10px 4px", background:"none", border:"none", cursor:"pointer", fontFamily:"var(--fb)", fontSize:12, color:tab===id?"var(--gsoft)":"var(--muted)", borderBottom:tab===id?"2px solid var(--gold)":"2px solid transparent", transition:"all .2s", position:"relative" }}>
-            {label}{badge>0&&<span style={{ position:"absolute", top:6, right:"10%", width:16, height:16, borderRadius:"50%", background:"var(--red)", color:"#fff", fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700 }}>{badge}</span>}
-          </button>
-        ))}
+      {/* Tabs */}
+      <div style={{ display:"flex", borderBottom:"1px solid var(--bord)", background:"rgba(22,14,8,.95)", flexShrink:0 }}>
+        <TabBtn id="bekleyen"  label="⏳ Bekleyen"  badge={pending.length} />
+        <TabBtn id="masalar"   label="🪑 Masalar"   badge={newOrdsCount} />
+        <TabBtn id="musteriler" label="👥 Müşteriler" badge={0} />
+        <TabBtn id="bildirim"  label="🔔 Bildirim"  badge={unread} />
+        <TabBtn id="admin"     label="⚙️ Admin"     badge={0} />
       </div>
 
       <div style={{ flex:1, overflowY:"auto", padding:14 }}>
         {loading && <div style={{ textAlign:"center", color:"var(--muted)", marginTop:60 }}>Yükleniyor...</div>}
 
+        {/* ── BEKLEYEN ── */}
         {!loading && tab==="bekleyen" && (
           pending.length===0
             ? <div style={{ textAlign:"center", color:"var(--muted)", marginTop:60 }}><div style={{ fontSize:36 }}>✅</div><div style={{ marginTop:12, fontSize:14, fontStyle:"italic" }}>Bekleyen kayıt yok</div></div>
             : pending.map(s=>(
-              <div key={s.id} style={{ padding:"13px 15px", background:"var(--surf2)", border:"1px solid rgba(58,106,154,.45)", borderRadius:14, marginBottom:11, animation:"bounce .4s ease-out" }}>
+              <div key={s.id} style={{ ...card(), border:"1px solid rgba(58,106,154,.45)", animation:"bounce .4s ease-out" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:11 }}>
                   <div>
                     <div style={{ fontFamily:"var(--fh)", fontSize:17, color:"var(--cream)" }}>{s.ad}</div>
@@ -581,7 +624,7 @@ const GarsonPanel = ({ onBack }) => {
                     <div style={{ fontSize:12, color:"var(--muted)" }}>🕐 {s.created_at?.slice(11,16)}</div>
                   </div>
                   <div style={{ textAlign:"right" }}>
-                    <div style={{ fontFamily:"var(--fh)", fontSize:24, color:"var(--gsoft)" }}>Masa {s.masa}</div>
+                    <div style={{ fontFamily:"var(--fh)", fontSize:22, color:"var(--gsoft)" }}>Masa {s.masa}</div>
                     <StatusBadge status={s.durum} />
                   </div>
                 </div>
@@ -593,97 +636,161 @@ const GarsonPanel = ({ onBack }) => {
             ))
         )}
 
-        {!loading && tab==="masalar" && <>
-          {active.length>0 && <>
-            <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--muted)", marginBottom:9, letterSpacing:1 }}>AKTİF MASALAR</div>
-            {active.map(s=>{
-              const sOrders = orders.filter(o=>o.masa===parseInt(s.masa)&&o.musteri===s.ad);
-              const total = sOrders.reduce((a,o)=>a+(o.toplam||0),0);
-              return (
-                <div key={s.id} style={{ padding:"13px 15px", background:"var(--surf2)", border:"1px solid rgba(58,138,92,.35)", borderRadius:14, marginBottom:11 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                    <div>
-                      <div style={{ fontFamily:"var(--fh)", fontSize:16, color:"var(--cream)" }}>{s.ad} <span style={{ color:"var(--muted)", fontSize:13, fontFamily:"var(--fb)" }}>· Masa {s.masa}</span></div>
-                      <div style={{ fontSize:12, color:"var(--muted)" }}>📱 {s.tel}</div>
+        {/* ── MASALAR (sadece aktif + inline sipariş) ── */}
+        {!loading && tab==="masalar" && (
+          active.length===0
+            ? <div style={{ textAlign:"center", color:"var(--muted)", marginTop:60 }}><div style={{ fontSize:36 }}>🪑</div><div style={{ marginTop:12, fontSize:14, fontStyle:"italic" }}>Şu an aktif masa yok</div></div>
+            : active.map(s => {
+                const sOrders = orders.filter(o=>o.masa===parseInt(s.masa)&&o.musteri===s.ad);
+                const total   = sOrders.reduce((a,o)=>a+(o.toplam||0),0);
+                const hasNew  = sOrders.some(o=>o.status==="yeni");
+                return (
+                  <div key={s.id} style={{ ...card({ border:`1px solid ${hasNew?"rgba(192,64,64,.5)":"rgba(58,138,92,.35)"}` }), animation: hasNew?"blink 2s ease-in-out infinite":"none" }}>
+                    {/* Masa başlık */}
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                      <div>
+                        <div style={{ fontFamily:"var(--fh)", fontSize:17, color:"var(--cream)" }}>
+                          Masa {s.masa}
+                          <span style={{ color:"var(--muted)", fontSize:13, fontFamily:"var(--fb)", marginLeft:8 }}>{s.ad}</span>
+                        </div>
+                        <div style={{ fontSize:12, color:"var(--muted)", marginTop:2 }}>
+                          ⏱ {elapsed(s.created_at)} · 📱 {s.tel}
+                        </div>
+                      </div>
+                      <div style={{ textAlign:"right" }}>
+                        <div style={{ fontFamily:"var(--fh)", fontSize:20, color:"var(--gsoft)" }}>{total}₺</div>
+                        <StatusBadge status={s.durum} />
+                      </div>
                     </div>
-                    <div style={{ fontFamily:"var(--fh)", fontSize:18, color:"var(--gsoft)" }}>{total}₺</div>
-                  </div>
-                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                    {AB("⏸ Hesap & Askıya Al", ()=>sessionAction(s.id,"update","askida"), "201,145,58")}
-                    {AB("🚫 Engelle", ()=>sessionAction(s.id,"update","engelli"), "192,64,64")}
-                  </div>
-                </div>
-              );
-            })}
-          </>}
 
-          {orders.length>0 && <>
-            <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--muted)", marginBottom:9, letterSpacing:1, marginTop:active.length>0?16:0 }}>SİPARİŞLER</div>
-            {[...orders].map(o=>(
-              <div key={o.id} style={{ padding:"13px 15px", background:"var(--surf2)", border:`1px solid ${o.status==="yeni"?"rgba(192,64,64,.45)":o.status==="hazırlanıyor"?"rgba(201,145,58,.38)":"rgba(58,138,92,.38)"}`, borderRadius:14, marginBottom:11 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:9 }}>
-                  <div style={{ fontFamily:"var(--fh)", fontSize:15, color:"var(--cream)" }}>Masa {o.masa} <span style={{ color:"var(--muted)", fontSize:12, fontFamily:"var(--fb)" }}>· {o.musteri}</span></div>
-                  <div style={{ display:"flex", gap:7, alignItems:"center" }}>
-                    <span style={{ fontSize:11, color:"var(--muted)" }}>{o.created_at?.slice(11,16)}</span>
-                    <span style={{ fontSize:11, padding:"2px 9px", borderRadius:20, fontWeight:600, background:o.status==="yeni"?"rgba(192,64,64,.2)":o.status==="hazırlanıyor"?"rgba(201,145,58,.2)":"rgba(58,138,92,.2)", color:o.status==="yeni"?"#e06060":o.status==="hazırlanıyor"?"var(--gsoft)":"#3aaa6a" }}>{o.status}</span>
-                  </div>
-                </div>
-                {(o.urunler||[]).map((u,i)=>(
-                  <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:13.5, color:"var(--cream)", padding:"3px 0", borderBottom:i<(o.urunler||[]).length-1?"1px solid var(--bord)":"none" }}>
-                    <span><strong style={{ color:"var(--gsoft)" }}>{u.adet}×</strong> {u.ad} <span style={{ color:"var(--muted)", fontSize:11 }}>~{u.bekleme}dk</span></span>
-                    <span style={{ color:"var(--muted)" }}>{u.adet*u.fiyat}₺</span>
-                  </div>
-                ))}
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:10 }}>
-                  <span style={{ fontFamily:"var(--fh)", color:"var(--gsoft)", fontSize:15 }}>Toplam: {o.toplam}₺</span>
-                  <div style={{ display:"flex", gap:7 }}>
-                    {o.status==="yeni"         && AB("🔥 Hazırlıyorum", ()=>orderAction(o.id,"hazırlanıyor"), "201,145,58")}
-                    {o.status==="hazırlanıyor" && AB("✅ Hazır — Servis", ()=>orderAction(o.id,"hazır"), "58,138,92")}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </>}
+                    {/* Siparişler inline */}
+                    {sOrders.length===0
+                      ? <div style={{ fontSize:13, color:"var(--muted)", fontStyle:"italic", padding:"6px 0" }}>Henüz sipariş yok</div>
+                      : sOrders.map(o=>(
+                        <div key={o.id} style={{ padding:"9px 12px", background:"var(--surf)", borderRadius:10, marginBottom:7, border:`1px solid ${o.status==="yeni"?"rgba(192,64,64,.4)":o.status==="hazırlanıyor"?"rgba(201,145,58,.3)":"rgba(58,138,92,.3)"}` }}>
+                          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                            <span style={{ fontSize:11, color:"var(--muted)" }}>🕐 {o.created_at?.slice(11,16)}</span>
+                            <span style={{ fontSize:11, padding:"2px 9px", borderRadius:20, fontWeight:600,
+                              background:o.status==="yeni"?"rgba(192,64,64,.2)":o.status==="hazırlanıyor"?"rgba(201,145,58,.2)":"rgba(58,138,92,.2)",
+                              color:o.status==="yeni"?"#e06060":o.status==="hazırlanıyor"?"var(--gsoft)":"#3aaa6a"
+                            }}>{o.status}</span>
+                          </div>
+                          {(o.urunler||[]).map((u,i)=>(
+                            <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"var(--cream)", padding:"2px 0" }}>
+                              <span><strong style={{ color:"var(--gsoft)" }}>{u.adet}×</strong> {u.ad}</span>
+                              <span style={{ color:"var(--muted)" }}>{u.adet*u.fiyat}₺</span>
+                            </div>
+                          ))}
+                          {/* Inline akış butonları */}
+                          <div style={{ marginTop:8, display:"flex", justifyContent:"flex-end", gap:7 }}>
+                            {o.status==="yeni"         && AB("🔥 Hazırlıyorum", ()=>orderAction(o.id,"hazırlanıyor"), "201,145,58")}
+                            {o.status==="hazırlanıyor" && AB("✅ Servis Et", ()=>orderAction(o.id,"hazır"), "58,138,92")}
+                          </div>
+                        </div>
+                      ))
+                    }
 
-          {others.length>0 && <>
-            <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--muted)", marginBottom:9, letterSpacing:1, marginTop:16 }}>GEÇMİŞ OTURUMLAR</div>
-            {others.map(s=>(
-              <div key={s.id} style={{ padding:"13px 15px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14, marginBottom:11, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div>
-                  <div style={{ fontFamily:"var(--fh)", fontSize:15, color:"var(--cream)" }}>{s.ad} <span style={{ color:"var(--muted)", fontSize:12, fontFamily:"var(--fb)" }}>· Masa {s.masa}</span></div>
-                  <div style={{ fontSize:12, color:"var(--muted)" }}>📱 {s.tel}</div>
-                </div>
-                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:7 }}>
-                  <StatusBadge status={s.durum} />
-                  {s.durum==="askida" && AB("↺ Yeniden Aç", ()=>sessionAction(s.id,"update","aktif"), "58,106,154")}
-                </div>
-              </div>
-            ))}
-          </>}
+                    {/* Masa aksiyon */}
+                    <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap" }}>
+                      {AB("⏸ Hesap & Askıya Al", ()=>sessionAction(s.id,"update","askida"), "201,145,58")}
+                      {AB("🚫 Engelle", ()=>sessionAction(s.id,"update","engelli"), "192,64,64")}
+                    </div>
+                  </div>
+                );
+              })
+        )}
 
-          {sessions.length===0 && orders.length===0 && !loading &&
-            <div style={{ textAlign:"center", color:"var(--muted)", marginTop:60 }}><div style={{ fontSize:36 }}>🪑</div><div style={{ marginTop:12, fontSize:14, fontStyle:"italic" }}>Henüz aktif masa yok</div></div>
-          }
-        </>}
+        {/* ── MÜŞTERİLER ── */}
+        {!loading && tab==="musteriler" && (
+          <>
+            {allCust.length===0
+              ? <div style={{ textAlign:"center", color:"var(--muted)", marginTop:60 }}><div style={{ fontSize:36 }}>👥</div><div style={{ marginTop:12, fontSize:14, fontStyle:"italic" }}>Henüz müşteri kaydı yok</div></div>
+              : allCust.map(s=>{
+                  const hist = customerHistory(s);
+                  return (
+                    <div key={s.id} style={{ ...card() }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontFamily:"var(--fh)", fontSize:16, color:"var(--cream)" }}>{s.ad}</div>
+                          <div style={{ fontSize:12, color:"var(--muted)", marginTop:2 }}>📱 {s.tel} · Masa {s.masa}</div>
+                          <div style={{ fontSize:12, color:"var(--muted)" }}>🕐 {s.created_at?.slice(0,16).replace("T"," ")}</div>
+                          <div style={{ fontSize:13, color:"var(--gsoft)", marginTop:3 }}>
+                            💰 {hist.total}₺ · {hist.orders.length} sipariş
+                          </div>
+                        </div>
+                        <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
+                          <StatusBadge status={s.durum} />
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", gap:7, marginTop:11, flexWrap:"wrap" }}>
+                        {AB("📋 Geçmiş", ()=>setHistorySession(s), "201,145,58")}
+                        {s.durum==="askida" && AB("↺ Yeniden Aç", ()=>sessionAction(s.id,"update","aktif"), "58,106,154")}
+                        {s.durum==="aktif"  && AB("⏸ Askıya Al",  ()=>sessionAction(s.id,"update","askida"), "201,145,58")}
+                        {s.durum!=="engelli" && AB("🚫 Engelle", ()=>sessionAction(s.id,"update","engelli"), "192,64,64")}
+                        {s.durum==="engelli" && AB("✓ Engeli Kaldır", ()=>sessionAction(s.id,"update","askida"), "58,138,92")}
+                        {AB("🗑 Sil", ()=>{ if(window.confirm(`${s.ad} silinsin mi?`)) sessionAction(s.id,"delete",""); }, "192,64,64")}
+                      </div>
+                    </div>
+                  );
+                })
+            }
+          </>
+        )}
 
+        {/* ── BİLDİRİMLER ── */}
         {!loading && tab==="bildirim" && (
           notifs.length===0
             ? <div style={{ textAlign:"center", color:"var(--muted)", marginTop:60 }}><div style={{ fontSize:36 }}>🔕</div><div style={{ marginTop:12, fontSize:14, fontStyle:"italic" }}>Bildirim yok</div></div>
             : [...notifs].reverse().map(n=>(
-              <div key={n.id} style={{ padding:"13px 15px", background:n.type==="garson"?"rgba(58,106,154,.1)":"rgba(201,145,58,.08)", border:`1px solid ${n.type==="garson"?"rgba(58,106,154,.4)":"rgba(201,145,58,.35)"}`, borderRadius:14, marginBottom:11, display:"flex", justifyContent:"space-between", alignItems:"flex-start", animation:!n.acked?"blink 1.5s ease-in-out infinite":"none" }}>
-                <div>
-                  <div style={{ fontFamily:"var(--fh)", fontSize:15, color:n.type==="garson"?"#6aaae0":"var(--gsoft)" }}>
-                    {n.type==="garson" ? `🔔 Masa ${n.masa} — ${n.ad} garson istiyor` : `💳 Masa ${n.masa} — ${n.ad} hesap istiyor`}
+              <div key={n.id} style={{ ...card({
+                background: n.type==="garson"?"rgba(58,106,154,.1)":"rgba(201,145,58,.08)",
+                border:`1px solid ${n.type==="garson"?"rgba(58,106,154,.4)":"rgba(201,145,58,.35)"}`,
+                animation: !n.acked?"blink 1.5s ease-in-out infinite":"none",
+              })}}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                  <div>
+                    <div style={{ fontFamily:"var(--fh)", fontSize:15, color:n.type==="garson"?"#6aaae0":"var(--gsoft)" }}>
+                      {n.type==="garson" ? `🔔 Masa ${n.masa} — ${n.ad} garson istiyor` : `💳 Masa ${n.masa} — ${n.ad} hesap istiyor`}
+                    </div>
+                    {n.type==="hesap" && <div style={{ fontSize:13, color:"var(--cream)", marginTop:4 }}>Ödeme: {n.payment==="nakit"?"Nakit 💵":n.payment==="kart"?"Kart 💳":"QR 📱"} · <strong style={{ color:"var(--gsoft)" }}>{n.total}₺</strong></div>}
+                    <div style={{ fontSize:11, color:"var(--muted)", marginTop:4 }}>📱 {n.tel} · {n.created_at?.slice(11,16)}</div>
                   </div>
-                  {n.type==="hesap" && <div style={{ fontSize:13, color:"var(--cream)", marginTop:4 }}>Ödeme: {n.payment==="nakit"?"Nakit 💵":n.payment==="kart"?"Kart 💳":"QR Kod 📱"} · <strong style={{ color:"var(--gsoft)" }}>{n.total}₺</strong></div>}
-                  <div style={{ fontSize:11, color:"var(--muted)", marginTop:4 }}>📱 {n.tel} · {n.created_at?.slice(11,16)}</div>
+                  {!n.acked && <button onClick={()=>ack(n.id)} style={{ background:"none", border:"1px solid var(--bord)", borderRadius:8, color:"var(--muted)", cursor:"pointer", padding:"5px 11px", fontSize:12, flexShrink:0, marginLeft:9 }}>✓ Tamam</button>}
                 </div>
-                {!n.acked && <button onClick={()=>ack(n.id)} style={{ background:"none", border:"1px solid var(--bord)", borderRadius:8, color:"var(--muted)", cursor:"pointer", padding:"5px 11px", fontSize:12, flexShrink:0, marginLeft:9 }}>✓ Tamam</button>}
               </div>
             ))
         )}
 
+        {/* ── ADMIN ── */}
         {!loading && tab==="admin" && <>
+          {/* Günlük Özet */}
+          <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--gsoft)", marginBottom:10 }}>📊 Bugünün Özeti</div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:18 }}>
+            {[
+              { label:"Toplam Ciro", value:`${todayCiro}₺`, color:"var(--gsoft)" },
+              { label:"Sipariş Sayısı", value:todayOrders.length, color:"#6aaae0" },
+              { label:"Aktif Masa", value:active.length, color:"#3aaa6a" },
+              { label:"Bekleyen", value:orders.filter(o=>o.status==="yeni"||o.status==="hazırlanıyor").length, color:"#e06060" },
+            ].map((s,i)=>(
+              <div key={i} style={{ padding:"12px 14px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:12 }}>
+                <div style={{ fontSize:11, color:"var(--muted)", marginBottom:4 }}>{s.label}</div>
+                <div style={{ fontFamily:"var(--fh)", fontSize:22, color:s.color }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+          {enCokSatan.length>0 && (
+            <div style={{ padding:"12px 14px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:12, marginBottom:18 }}>
+              <div style={{ fontSize:11, color:"var(--muted)", marginBottom:10 }}>🏆 EN ÇOK SATAN</div>
+              {enCokSatan.map(([ad,adet],i)=>(
+                <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:14, color:"var(--cream)", padding:"4px 0", borderBottom:i<enCokSatan.length-1?"1px solid var(--bord)":"none" }}>
+                  <span>{i===0?"🥇":i===1?"🥈":"🥉"} {ad}</span>
+                  <span style={{ color:"var(--gsoft)" }}>{adet} adet</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Özel Menü */}
           <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--gsoft)", marginBottom:10 }}>⭐ Günün Özel Menüsü</div>
           {specials.map((s,i)=>(
             <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"9px 13px", marginBottom:7, background:"rgba(201,145,58,.1)", border:"1px solid rgba(201,145,58,.3)", borderRadius:12 }}>
@@ -698,6 +805,7 @@ const GarsonPanel = ({ onBack }) => {
             <button onClick={async()=>{ if(!newSpec.name||!newSpec.price)return; await api.post("panel.php",{action:"add_special",...newSpec,price:parseInt(newSpec.price)}); setNewSpec({name:"",price:"",desc:""}); fetchAll(); }} style={{ width:"100%", padding:"10px", background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:14, fontWeight:600 }}>⭐ Ekle</button>
           </div>
 
+          {/* Menü ürünü ekle */}
           <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--gsoft)", marginBottom:10 }}>📋 Menüye Ürün Ekle</div>
           <div style={{ padding:"13px 15px", background:"var(--surf2)", border:"1px solid var(--gdim)", borderRadius:14 }}>
             <select value={newItem.cat} onChange={e=>setNewItem({...newItem,cat:e.target.value})} style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"10px 13px", color:"var(--cream)", fontSize:14, outline:"none", marginBottom:7 }}>
@@ -706,17 +814,59 @@ const GarsonPanel = ({ onBack }) => {
             {[["Ürün adı",newItem.name,v=>setNewItem({...newItem,name:v})],["Fiyat (₺)",newItem.price,v=>setNewItem({...newItem,price:v}),"number"],["Süre (dk)",newItem.wait,v=>setNewItem({...newItem,wait:v}),"number"],["Açıklama",newItem.desc,v=>setNewItem({...newItem,desc:v})]].map(([ph,val,fn,tp="text"],i)=>(
               <input key={i} type={tp} value={val} placeholder={ph} onChange={e=>fn(e.target.value)} style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"10px 13px", color:"var(--cream)", fontSize:14, outline:"none", marginBottom:7 }} />
             ))}
-            <button onClick={async()=>{ if(!newItem.name||!newItem.price)return; await api.post("panel.php",{action:"add_menu",kategori:newItem.cat,ad:newItem.name,fiyat:parseInt(newItem.price),sure:parseInt(newItem.wait)||5,aciklama:newItem.desc}); setNewItem({...newItem,name:"",price:"",desc:"",wait:""}); fetchAll(); }} style={{ width:"100%", padding:"10px", background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:14, fontWeight:600 }}>+ Menüye Ekle</button>
+            <button onClick={async()=>{ if(!newItem.name||!newItem.price)return; await api.post("panel.php",{action:"add_menu",kategori:newItem.cat,ad:newItem.name,fiyat:parseInt(newItem.price),sure:parseInt(newItem.wait)||5,aciklama:newItem.desc}); setNewItem({...newItem,name:"",price:"",desc:"",wait:""}); fetchAll(); }} style={{ width:"100%", padding:"10px", background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:14, fontWeight:600 }}>+ Ekle</button>
           </div>
         </>}
       </div>
+
+      {/* Müşteri Geçmiş Popup */}
+      {historySession && (()=>{
+        const hist = customerHistory(historySession);
+        return (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.88)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:300, backdropFilter:"blur(4px)" }}>
+            <div style={{ width:"100%", maxWidth:525, background:"var(--surf)", borderRadius:"22px 22px 0 0", padding:"22px 18px 38px", maxHeight:"80vh", display:"flex", flexDirection:"column", animation:"fadeUp .3s ease-out" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                <div>
+                  <div style={{ fontFamily:"var(--fh)", fontSize:19, color:"var(--cream)" }}>{historySession.ad}</div>
+                  <div style={{ fontSize:13, color:"var(--muted)" }}>📱 {historySession.tel} · Masa {historySession.masa}</div>
+                </div>
+                <button onClick={()=>setHistorySession(null)} style={{ background:"none", border:"none", color:"var(--muted)", cursor:"pointer", fontSize:24 }}>✕</button>
+              </div>
+              {/* Özet */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:9, marginBottom:14 }}>
+                <div style={{ padding:"10px 12px", background:"var(--surf2)", borderRadius:12, textAlign:"center" }}>
+                  <div style={{ fontSize:11, color:"var(--muted)" }}>TOPLAM HARCAMA</div>
+                  <div style={{ fontFamily:"var(--fh)", fontSize:22, color:"var(--gsoft)", marginTop:2 }}>{hist.total}₺</div>
+                </div>
+                <div style={{ padding:"10px 12px", background:"var(--surf2)", borderRadius:12, textAlign:"center" }}>
+                  <div style={{ fontSize:11, color:"var(--muted)" }}>SİPARİŞ SAYISI</div>
+                  <div style={{ fontFamily:"var(--fh)", fontSize:22, color:"#6aaae0", marginTop:2 }}>{hist.orders.length}</div>
+                </div>
+              </div>
+              {/* Sipariş geçmişi */}
+              <div style={{ overflowY:"auto", flex:1 }}>
+                {hist.orders.length===0
+                  ? <div style={{ textAlign:"center", color:"var(--muted)", marginTop:30, fontStyle:"italic" }}>Sipariş geçmişi yok</div>
+                  : hist.orders.map(o=>(
+                    <div key={o.id} style={{ padding:"10px 12px", background:"var(--surf2)", borderRadius:12, marginBottom:8 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                        <span style={{ fontSize:12, color:"var(--muted)" }}>🕐 {o.created_at?.slice(11,16)}</span>
+                        <span style={{ fontFamily:"var(--fh)", color:"var(--gsoft)", fontSize:14 }}>{o.toplam}₺</span>
+                      </div>
+                      {(o.urunler||[]).map((u,i)=>(
+                        <div key={i} style={{ fontSize:13, color:"var(--cream)", padding:"2px 0" }}>{u.adet}× {u.ad}</div>
+                      ))}
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
-
-/* ══════════════════════════════════════════════════════════
-   ROOT
-══════════════════════════════════════════════════════════ */
 export default function App() {
   const [session, setSession]   = useState(null);
   const [sessionStatus, setSessionStatus] = useState(null);
