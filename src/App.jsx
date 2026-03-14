@@ -5,37 +5,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 const API = import.meta.env.VITE_API_BASE || "https://testokulu.com/garson-api";
 
 /* ══════════════════════════════════════════════════════════
-   GLOBAL STYLES
-══════════════════════════════════════════════════════════ */
-const GS = () => (
-  <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600&display=swap');
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{
-      --bg:#0b0704;--surf:#160e08;--surf2:#1f1409;
-      --bord:rgba(210,160,70,0.15);--gold:#c9913a;--gsoft:#e8b86d;
-      --gdim:rgba(201,145,58,0.22);--cream:#f0ddc4;--muted:#7a6448;
-      --red:#c04040;--green:#3a8a5c;--blue:#3a6a9a;
-      --fh:'Playfair Display',serif;--fb:'Crimson Pro',serif;
-    }
-    body{background:var(--bg);color:var(--cream);font-family:var(--fb)}
-    input,textarea,button,select{font-family:var(--fb)}
-    ::-webkit-scrollbar{width:4px}
-    ::-webkit-scrollbar-thumb{background:var(--gdim);border-radius:2px}
-    @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(192,64,64,.6)}50%{box-shadow:0 0 0 14px rgba(192,64,64,0)}}
-    @keyframes waveBar{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
-    @keyframes glow{0%,100%{opacity:.4}50%{opacity:1}}
-    @keyframes bounce{0%{transform:scale(.8);opacity:0}60%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    @keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
-    @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-    @keyframes slideIn{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:translateX(0)}}
-  `}</style>
-);
-
-/* ══════════════════════════════════════════════════════════
    API HELPERS
 ══════════════════════════════════════════════════════════ */
 const api = {
@@ -127,7 +96,7 @@ const RegisterScreen = ({ onRegister, blockedMsg }) => {
 
   if (blockedMsg) return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"var(--bg)", padding:28 }}>
-      <GS />
+      
       <div style={{ fontSize:60, marginBottom:20 }}>🚫</div>
       <div style={{ fontFamily:"var(--fh)", fontSize:22, color:"#e06060", marginBottom:12, textAlign:"center" }}>Erişiminiz Kısıtlandı</div>
       <div style={{ fontSize:14, color:"var(--muted)", textAlign:"center" }}>Lütfen işletme personeline başvurun.</div>
@@ -152,7 +121,7 @@ const RegisterScreen = ({ onRegister, blockedMsg }) => {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:"var(--bg)" }}>
-      <GS />
+      
       <div style={{ position:"fixed", inset:0, background:"radial-gradient(ellipse 70% 55% at 50% 30%, rgba(201,145,58,.07) 0%, transparent 70%)", pointerEvents:"none" }} />
       <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"28px 24px", position:"relative", zIndex:1 }}>
         <div style={{ width:72, height:72, borderRadius:"50%", background:"linear-gradient(135deg,var(--gold) 0%,#6b3d10 100%)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, marginBottom:18, boxShadow:"0 0 36px rgba(201,145,58,.32)", animation:"float 4s ease-in-out infinite" }}>🍽️</div>
@@ -180,7 +149,7 @@ const RegisterScreen = ({ onRegister, blockedMsg }) => {
 ══════════════════════════════════════════════════════════ */
 const WaitingScreen = ({ session }) => (
   <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"var(--bg)", padding:28 }}>
-    <GS />
+    
     <div style={{ position:"relative", width:100, height:100, marginBottom:28 }}>
       {[0,1,2].map(i => <div key={i} style={{ position:"absolute", inset:0, borderRadius:"50%", border:"2px solid rgba(201,145,58,.4)", animation:`spin ${2+i*.5}s linear infinite`, transform:`scale(${1+i*.2})` }} />)}
       <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:38 }}>⏳</div>
@@ -212,7 +181,7 @@ const WaitingScreen = ({ session }) => (
 ══════════════════════════════════════════════════════════ */
 const SuspendedScreen = ({ session }) => (
   <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"var(--bg)", padding:28 }}>
-    <GS />
+    
     <div style={{ fontSize:60, marginBottom:20, animation:"float 3s ease-in-out infinite" }}>⏸️</div>
     <div style={{ fontFamily:"var(--fh)", fontSize:24, color:"var(--cream)", marginBottom:10, textAlign:"center" }}>Oturumunuz Askıda</div>
     <div style={{ fontSize:15, color:"var(--muted)", fontStyle:"italic", textAlign:"center", lineHeight:1.7, marginBottom:28 }}>
@@ -582,7 +551,7 @@ const GarsonPanel = ({ onBack }) => {
 
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"var(--bg)" }}>
-      <GS />
+      
       <div style={{ padding:"14px 17px", borderBottom:"1px solid var(--bord)", display:"flex", alignItems:"center", gap:11, background:"var(--surf)", flexShrink:0 }}>
         <button onClick={onBack} style={{ background:"none", border:"none", color:"var(--muted)", cursor:"pointer", fontSize:21 }}>←</button>
         <div style={{ fontFamily:"var(--fh)", fontSize:18, color:"var(--cream)" }}>👨‍🍳 Yönetim Paneli</div>
@@ -794,7 +763,6 @@ export default function App() {
     return () => clearInterval(interval);
   }, [session, sessionStatus]);
 
-  // GS her zaman en üstte render edilir — CSS değişkenleri hiç kaybolmaz
   const renderContent = () => {
     if (view === "garson") return <GarsonPanel onBack={() => setView("customer")} />;
 
@@ -820,7 +788,6 @@ export default function App() {
 
   return (
     <>
-      <GS />
       {content !== null ? content : (
         <CustomerChat
           session={session}
