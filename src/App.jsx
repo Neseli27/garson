@@ -794,33 +794,43 @@ export default function App() {
     return () => clearInterval(interval);
   }, [session, sessionStatus]);
 
-  if (view === "garson") return <GarsonPanel onBack={() => setView("customer")} />;
+  // GS her zaman en üstte render edilir — CSS değişkenleri hiç kaybolmaz
+  const renderContent = () => {
+    if (view === "garson") return <GarsonPanel onBack={() => setView("customer")} />;
 
-  if (!menuLoaded) return (
-    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--bg)" }}>
-      <GS />
-      <div style={{ width:40, height:40, borderRadius:"50%", border:"3px solid var(--gdim)", borderTopColor:"var(--gold)", animation:"spin .8s linear infinite" }} />
-    </div>
-  );
+    if (!menuLoaded) return (
+      <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--bg)" }}>
+        <div style={{ width:40, height:40, borderRadius:"50%", border:"3px solid var(--gdim)", borderTopColor:"var(--gold)", animation:"spin .8s linear infinite" }} />
+      </div>
+    );
 
-  if (!session) return <RegisterScreen onRegister={s => { setSession(s); setSessionStatus(s.durum); }} />;
-  if (sessionStatus === "engelli") return <RegisterScreen blockedMsg="engelli" />;
-  if (sessionStatus === "askida")  return <SuspendedScreen session={session} />;
-  if (sessionStatus === "bekliyor") return (
-    <>
-      <WaitingScreen session={session} />
-      <button onClick={() => setView("garson")} style={{ position:"fixed", bottom:20, right:20, background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:12, padding:"9px 16px", color:"var(--muted)", cursor:"pointer", fontSize:13, zIndex:999 }}>👨‍🍳</button>
-    </>
-  );
+    if (!session) return <RegisterScreen onRegister={s => { setSession(s); setSessionStatus(s.durum); }} />;
+    if (sessionStatus === "engelli") return <RegisterScreen blockedMsg="engelli" />;
+    if (sessionStatus === "askida")  return <SuspendedScreen session={session} />;
+    if (sessionStatus === "bekliyor") return (
+      <>
+        <WaitingScreen session={session} />
+        <button onClick={() => setView("garson")} style={{ position:"fixed", bottom:20, right:20, background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:12, padding:"9px 16px", color:"var(--muted)", cursor:"pointer", fontSize:13, zIndex:999 }}>👨‍🍳</button>
+      </>
+    );
+    return null;
+  };
+
+  const content = renderContent();
 
   return (
-    <CustomerChat
-      session={session}
-      menu={menu}
-      specials={specials}
-      tableOrders={tableOrders}
-      setTableOrders={setTableOrders}
-      onViewGarson={() => setView("garson")}
-    />
+    <>
+      <GS />
+      {content !== null ? content : (
+        <CustomerChat
+          session={session}
+          menu={menu}
+          specials={specials}
+          tableOrders={tableOrders}
+          setTableOrders={setTableOrders}
+          onViewGarson={() => setView("garson")}
+        />
+      )}
+    </>
   );
 }
