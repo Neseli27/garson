@@ -766,7 +766,7 @@ const GarsonPanel = ({ onBack, rol = "garson" }) => {
 
   // Müşteri geçmişi hesaplama
   const customerHistory = (session) => {
-    const sOrders = orders.filter(o=>o.session_id===session.id || parseInt(o.masa)===parseInt(session.masa));
+    const sOrders = orders.filter(o => String(o.session_id)===String(session.id) || String(o.masa)===String(session.masa));
     const total   = sOrders.reduce((s,o)=>s+(o.toplam||0),0);
     return { orders:sOrders, total };
   };
@@ -834,10 +834,17 @@ const GarsonPanel = ({ onBack, rol = "garson" }) => {
 
         {/* ── MASALAR (sadece aktif + inline sipariş) ── */}
         {!loading && tab==="masalar" && (
-          active.length===0
-            ? <div style={{ textAlign:"center", color:"var(--muted)", marginTop:60 }}><div style={{ fontSize:36 }}>🪑</div><div style={{ marginTop:12, fontSize:14, fontStyle:"italic" }}>Şu an aktif masa yok</div></div>
-            : active.map(s => {
-                const sOrders = orders.filter(o=>o.session_id===s.id || parseInt(o.masa)===parseInt(s.masa));
+          <>
+            {active.length===0 && orders.length===0 && (
+              <div style={{ textAlign:"center", color:"var(--muted)", marginTop:60 }}>
+                <div style={{ fontSize:36 }}>🪑</div>
+                <div style={{ marginTop:12, fontSize:14, fontStyle:"italic" }}>Şu an aktif masa yok</div>
+              </div>
+            )}
+
+            {/* Aktif masalar */}
+            {active.map(s => {
+                const sOrders = orders.filter(o => String(o.session_id)===String(s.id) || String(o.masa)===String(s.masa));
                 const total   = sOrders.reduce((a,o)=>a+(o.toplam||0),0);
                 const hasNew  = sOrders.some(o=>o.status==="yeni");
                 return (
@@ -894,7 +901,43 @@ const GarsonPanel = ({ onBack, rol = "garson" }) => {
                     </div>
                   </div>
                 );
-              })
+              })}
+
+            {/* Tüm bekleyen/hazırlanan siparişler — session eşleşmesi olmasa bile */}
+            {(() => {
+              const shownIds = active.flatMap(s =>
+                orders.filter(o => String(o.session_id)===String(s.id)||String(o.masa)===String(s.masa)).map(o=>o.id)
+              );
+              const orphans = orders.filter(o => !shownIds.includes(o.id) && o.status !== "hazır");
+              if (!orphans.length) return null;
+              return (
+                <div style={{ marginTop: active.length ? 16 : 0 }}>
+                  <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--muted)", marginBottom:9, letterSpacing:1 }}>DİĞER SİPARİŞLER</div>
+                  {orphans.map(o => (
+                    <div key={o.id} style={{ ...card({ border:`1px solid ${o.status==="yeni"?"rgba(192,64,64,.45)":"rgba(201,145,58,.38)"}` }) }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                        <span style={{ fontFamily:"var(--fh)", fontSize:14, color:"var(--cream)" }}>Masa {o.masa} · {o.musteri}</span>
+                        <span style={{ fontSize:11, padding:"2px 9px", borderRadius:20, fontWeight:600,
+                          background:o.status==="yeni"?"rgba(192,64,64,.2)":"rgba(201,145,58,.2)",
+                          color:o.status==="yeni"?"#e06060":"var(--gsoft)"
+                        }}>{o.status}</span>
+                      </div>
+                      {(o.urunler||[]).map((u,i) => (
+                        <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"var(--cream)", padding:"2px 0" }}>
+                          <span><strong style={{ color:"var(--gsoft)" }}>{u.adet}×</strong> {u.ad}</span>
+                          <span style={{ color:"var(--muted)" }}>{u.adet*u.fiyat}₺</span>
+                        </div>
+                      ))}
+                      <div style={{ display:"flex", justifyContent:"flex-end", gap:7, marginTop:8 }}>
+                        {o.status==="yeni"         && AB("🔥 Hazırlıyorum", ()=>orderAction(o.id,"hazırlanıyor"), "201,145,58")}
+                        {o.status==="hazırlanıyor" && AB("✅ Servis Et",    ()=>orderAction(o.id,"hazır"),        "58,138,92")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </>
         )}
 
         {/* ── MÜŞTERİLER ── */}
