@@ -231,38 +231,83 @@ const Bubble = ({ msg, isLatest }) => {
 /* ══════════════════════════════════════════════════════════
    MENU VIEW
 ══════════════════════════════════════════════════════════ */
-const MenuView = ({ menu, specials }) => {
+const MenuView = ({ menu, specials, cart, onAdd, onRemove, onOrder, orderLoading }) => {
   const [open, setOpen] = useState(Object.keys(menu)[0] || "");
+
+  const cartTotal   = cart.reduce((s,i) => s + i.price * i.qty, 0);
+  const cartCount   = cart.reduce((s,i) => s + i.qty, 0);
+
+  const PlusBtn = ({ item }) => {
+    const qty = cart.find(c=>c.id===item.id)?.qty || 0;
+    return (
+      <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0, marginLeft:10 }}>
+        {qty > 0 && (
+          <>
+            <button onClick={()=>onRemove(item)} style={{ width:26, height:26, borderRadius:"50%", background:"var(--surf)", border:"1px solid var(--bord)", color:"var(--muted)", cursor:"pointer", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>−</button>
+            <span style={{ fontFamily:"var(--fh)", fontSize:14, color:"var(--cream)", minWidth:16, textAlign:"center" }}>{qty}</span>
+          </>
+        )}
+        <button onClick={()=>onAdd(item)} style={{ width:26, height:26, borderRadius:"50%", background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", color:"#0b0704", cursor:"pointer", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxShadow:"0 2px 8px rgba(201,145,58,.35)", fontWeight:700 }}>+</button>
+      </div>
+    );
+  };
+
   return (
-    <div style={{ overflowY:"auto", height:"100%", padding:"12px 14px" }}>
-      {specials.length > 0 && (
-        <div style={{ marginBottom:14, padding:"13px 15px", background:"linear-gradient(135deg,rgba(201,145,58,.18) 0%,rgba(139,94,42,.08) 100%)", border:"1px solid rgba(201,145,58,.4)", borderRadius:14 }}>
-          <div style={{ fontFamily:"var(--fh)", fontSize:14, color:"var(--gsoft)", marginBottom:9 }}>⭐ Günün Özel Menüsü</div>
-          {specials.map((s,i) => (
-            <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:i<specials.length-1?"1px solid var(--bord)":"none" }}>
-              <div><div style={{ fontSize:14, color:"var(--cream)" }}>{s.name}</div><div style={{ fontSize:11.5, color:"var(--muted)", fontStyle:"italic" }}>{s.desc}</div></div>
-              <div style={{ fontFamily:"var(--fh)", color:"var(--gsoft)", fontSize:15, marginLeft:12, flexShrink:0 }}>{s.price}₺</div>
-            </div>
-          ))}
+    <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
+      {/* Sepet özet bar */}
+      {cartCount > 0 && (
+        <div style={{ padding:"10px 14px", background:"linear-gradient(135deg,rgba(201,145,58,.18) 0%,rgba(139,94,42,.1) 100%)", borderBottom:"1px solid rgba(201,145,58,.3)", display:"flex", alignItems:"center", gap:10, flexShrink:0, animation:"fadeIn .2s" }}>
+          <div style={{ flex:1 }}>
+            <span style={{ fontFamily:"var(--fh)", color:"var(--gsoft)", fontSize:14 }}>{cartCount} ürün</span>
+            <span style={{ color:"var(--muted)", fontSize:13, marginLeft:8 }}>· {cartTotal}₺</span>
+          </div>
+          <button onClick={onOrder} disabled={orderLoading} style={{ padding:"8px 18px", background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:12, color:"#0b0704", cursor:orderLoading?"not-allowed":"pointer", fontFamily:"var(--fh)", fontSize:14, fontWeight:600, display:"flex", alignItems:"center", gap:6 }}>
+            {orderLoading ? <div style={{ width:14, height:14, borderRadius:"50%", border:"2px solid #8b5e2a", borderTopColor:"transparent", animation:"spin .8s linear infinite" }}/> : "🛎 Sipariş Ver"}
+          </button>
         </div>
       )}
-      {Object.entries(menu).map(([cat, items]) => (
-        <div key={cat} style={{ marginBottom:9 }}>
-          <button onClick={() => setOpen(open===cat?null:cat)} style={{ width:"100%", background:open===cat?"var(--gdim)":"var(--surf2)", border:"1px solid var(--bord)", borderRadius:10, padding:"11px 15px", color:"var(--cream)", cursor:"pointer", display:"flex", justifyContent:"space-between", fontFamily:"var(--fh)", fontSize:14, transition:"all .2s" }}>
-            <span>{cat}</span><span style={{ color:"var(--gold)", fontSize:11 }}>{open===cat?"▲":"▼"}</span>
-          </button>
-          {open===cat && items.map((item,i) => (
-            <div key={item.id} style={{ display:"flex", justifyContent:"space-between", padding:"9px 12px", borderBottom:i<items.length-1?"1px solid var(--bord)":"none", animation:`slideIn .2s ease-out ${i*.04}s both` }}>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:14.5, color:"var(--cream)" }}>{item.name}</div>
-                {item.desc && <div style={{ fontSize:12, color:"var(--muted)", fontStyle:"italic", marginTop:2 }}>{item.desc}</div>}
-                <div style={{ fontSize:11, color:"var(--gold)", marginTop:2 }}>⏱ ~{item.wait} dk</div>
+
+      <div style={{ flex:1, overflowY:"auto", padding:"12px 14px" }}>
+        {specials.length > 0 && (
+          <div style={{ marginBottom:14, padding:"13px 15px", background:"linear-gradient(135deg,rgba(201,145,58,.18) 0%,rgba(139,94,42,.08) 100%)", border:"1px solid rgba(201,145,58,.4)", borderRadius:14 }}>
+            <div style={{ fontFamily:"var(--fh)", fontSize:14, color:"var(--gsoft)", marginBottom:9 }}>⭐ Günün Özel Menüsü</div>
+            {specials.map((s,i) => (
+              <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 0", borderBottom:i<specials.length-1?"1px solid var(--bord)":"none" }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:14, color:"var(--cream)" }}>{s.name}</div>
+                  <div style={{ fontSize:11.5, color:"var(--muted)", fontStyle:"italic" }}>{s.desc}</div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <div style={{ fontFamily:"var(--fh)", color:"var(--gsoft)", fontSize:15 }}>{s.price}₺</div>
+                  <PlusBtn item={{ id:`sp_${i}`, name:s.name, price:s.price, wait:5 }} />
+                </div>
               </div>
-              <div style={{ fontFamily:"var(--fh)", fontSize:15, color:"var(--gsoft)", marginLeft:12, flexShrink:0, fontWeight:600 }}>{item.price}₺</div>
-            </div>
-          ))}
-        </div>
-      ))}
+            ))}
+          </div>
+        )}
+
+        {Object.entries(menu).map(([cat, items]) => (
+          <div key={cat} style={{ marginBottom:9 }}>
+            <button onClick={() => setOpen(open===cat?null:cat)} style={{ width:"100%", background:open===cat?"var(--gdim)":"var(--surf2)", border:"1px solid var(--bord)", borderRadius:10, padding:"11px 15px", color:"var(--cream)", cursor:"pointer", display:"flex", justifyContent:"space-between", fontFamily:"var(--fh)", fontSize:14, transition:"all .2s" }}>
+              <span>{cat}</span>
+              <span style={{ color:"var(--gold)", fontSize:11 }}>{open===cat?"▲":"▼"}</span>
+            </button>
+            {open===cat && items.map((item,i) => (
+              <div key={item.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"9px 12px", borderBottom:i<items.length-1?"1px solid var(--bord)":"none", animation:`slideIn .2s ease-out ${i*.04}s both`, background: cart.find(c=>c.id===item.id) ? "rgba(201,145,58,.05)" : "transparent", transition:"background .2s" }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:14.5, color:"var(--cream)" }}>{item.name}</div>
+                  {item.desc && <div style={{ fontSize:12, color:"var(--muted)", fontStyle:"italic", marginTop:2 }}>{item.desc}</div>}
+                  <div style={{ fontSize:11, color:"var(--gold)", marginTop:2 }}>⏱ ~{item.wait} dk</div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <div style={{ fontFamily:"var(--fh)", fontSize:15, color:"var(--gsoft)", fontWeight:600 }}>{item.price}₺</div>
+                  <PlusBtn item={item} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
@@ -339,10 +384,43 @@ const CustomerChat = ({ session, menu, specials, tableOrders, setTableOrders, on
   const [loading, setLoading]   = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [tab, setTab]           = useState("chat");
+  const [cart, setCart]         = useState([]);
+  const [orderLoading, setOrderLoading] = useState(false);
   const endRef  = useRef(null);
   const recRef  = useRef(null);
   const taRef   = useRef(null);
   const convRef = useRef([]);
+
+  const addToCart = (item) => setCart(prev => {
+    const ex = prev.find(c=>c.id===item.id);
+    if (ex) return prev.map(c=>c.id===item.id?{...c,qty:c.qty+1}:c);
+    return [...prev, { ...item, qty:1 }];
+  });
+  const removeFromCart = (item) => setCart(prev => {
+    const ex = prev.find(c=>c.id===item.id);
+    if (!ex || ex.qty <= 1) return prev.filter(c=>c.id!==item.id);
+    return prev.map(c=>c.id===item.id?{...c,qty:c.qty-1}:c);
+  });
+
+  const submitCartOrder = async () => {
+    if (!cart.length || orderLoading) return;
+    setOrderLoading(true);
+    const urunler = cart.map(c=>({ ad:c.name, adet:c.qty, fiyat:c.price, bekleme:c.wait||5 }));
+    const toplam  = cart.reduce((s,c)=>s+c.price*c.qty, 0);
+    try {
+      await api.post("order.php", { action:"create", session_id:session.id, masa:session.masa, musteri:session.ad, urunler, toplam, not:"" });
+      playBeep(660,.25,2);
+      setCart([]);
+      // Chat'e yansıt
+      const summary = urunler.map(u=>`${u.adet}× ${u.ad}`).join(", ");
+      setMsgs(p=>[...p,
+        { role:"user", content:`Menüden sipariş verdim: ${summary}`, id:Date.now(), time:ts() },
+        { role:"assistant", content:`✅ Siparişiniz alındı! ${summary} — toplam ${toplam}₺. Afiyet olsun ${session.ad}!`, id:Date.now()+1, time:ts() }
+      ]);
+      setTab("chat");
+    } catch { alert("Sipariş gönderilemedi, tekrar deneyin."); }
+    setOrderLoading(false);
+  };
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior:"smooth" }); }, [msgs]);
 
@@ -429,13 +507,13 @@ const CustomerChat = ({ session, menu, specials, tableOrders, setTableOrders, on
       </div>
       {/* Tabs */}
       <div style={{ display:"flex", borderBottom:"1px solid var(--bord)", background:"rgba(22,14,8,.9)", flexShrink:0, position:"relative", zIndex:10 }}>
-        {[{id:"chat",label:"💬 Garson"},{id:"menu",label:"📋 Menü"},{id:"table",label:`🛒 Masa${tableOrders.length>0?" ●":""}`}].map(({id,label}) => (
+        {[{id:"chat",label:"💬 Garson"},{id:"menu",label:`📋 Menü${cart.length>0?" ("+cart.reduce((s,c)=>s+c.qty,0)+")":""}`},{id:"table",label:`🛒 Masa${tableOrders.length>0?" ●":""}`}].map(({id,label}) => (
           <button key={id} onClick={() => setTab(id)} style={{ flex:1, padding:"10px 0", background:"none", border:"none", cursor:"pointer", fontFamily:"var(--fb)", fontSize:13, color:tab===id?"var(--gsoft)":"var(--muted)", borderBottom:tab===id?"2px solid var(--gold)":"2px solid transparent", transition:"all .2s" }}>{label}</button>
         ))}
       </div>
       {/* Content */}
       <div style={{ flex:1, overflow:"hidden", position:"relative", zIndex:1 }}>
-        {tab==="menu" && <MenuView menu={menu} specials={specials} />}
+        {tab==="menu" && <MenuView menu={menu} specials={specials} cart={cart} onAdd={addToCart} onRemove={removeFromCart} onOrder={submitCartOrder} orderLoading={orderLoading} />}
         {tab==="table" && <TableView session={session} tableOrders={tableOrders} onCallWaiter={callWaiter} onBill={requestBill} />}
         {tab==="chat" && (
           <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
