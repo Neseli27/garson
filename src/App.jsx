@@ -23,6 +23,14 @@ const parseOrder = t => {
 };
 const cleanText = t => t.replace(/###SIPARIS###[\s\S]*?###BITIS###/g, "").trim();
 
+// TTS için metni temizle: ₺, *, # gibi karakterleri kaldır, rakamları düzelt
+const cleanForTTS = t => cleanText(t)
+  .replace(/(\d+)\s*₺/g, (_, n) => `${n} lira`)   // 35₺ → "35 lira"
+  .replace(/~(\d+)\s*dk/g, (_, n) => `${n} dakika`) // ~5dk → "5 dakika"
+  .replace(/[₺*#•→←]/g, " ")
+  .replace(/\s{2,}/g, " ")
+  .trim();
+
 const playBeep = (freq = 880, dur = 0.35, n = 1) => {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -440,7 +448,7 @@ const CustomerChat = ({ session, menu, specials, tableOrders, setTableOrders, on
   const speak = useCallback(text => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(cleanText(text));
+    const u = new SpeechSynthesisUtterance(cleanForTTS(text));
     u.lang = "tr-TR"; u.rate = 1.05;
     u.onstart = () => setSpeaking(true);
     u.onend = () => setSpeaking(false);
@@ -502,7 +510,12 @@ const CustomerChat = ({ session, menu, specials, tableOrders, setTableOrders, on
           <div style={{ fontFamily:"var(--fh)", fontSize:16, color:"var(--cream)" }}>Garson AI</div>
           <div style={{ fontSize:11, color:"var(--muted)", fontStyle:"italic" }}>Bistro 7 — Masa {session.masa} — {session.ad}</div>
         </div>
-        {speaking && <div style={{ display:"flex", alignItems:"center", gap:5, color:"var(--gsoft)", fontSize:12 }}><Dots /> konuşuyor</div>}
+        {speaking && (
+          <button onClick={() => { window.speechSynthesis.cancel(); setSpeaking(false); }} style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(192,64,64,.18)", border:"1px solid rgba(192,64,64,.4)", borderRadius:20, padding:"5px 12px", cursor:"pointer", color:"#e06060", fontSize:12, fontFamily:"var(--fb)" }}>
+            <span style={{ width:8, height:8, borderRadius:2, background:"#e06060", display:"block" }}/>
+            Durdur
+          </button>
+        )}
         <button onClick={onViewGarson} style={{ background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:9, padding:"6px 11px", color:"var(--muted)", cursor:"pointer", fontSize:12 }}>👨‍🍳</button>
       </div>
       {/* Tabs */}
