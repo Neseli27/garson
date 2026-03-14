@@ -497,11 +497,16 @@ const CustomerChat = ({ session, menu, specials, tableOrders, setTableOrders, on
     const poll = async () => {
       try {
         const res = await api.get(`order.php?session_id=${session.id}`);
-        if (res.orders) setTableOrders(res.orders);
+        if (res.orders) {
+          setTableOrders(res.orders.map(o => ({
+            ...o,
+            urunler: typeof o.urunler === "string" ? JSON.parse(o.urunler) : (o.urunler || [])
+          })));
+        }
       } catch {}
     };
     poll();
-    const interval = setInterval(poll, 5000);
+    const interval = setInterval(poll, 4000);
     return () => clearInterval(interval);
   }, [session.id]);
 
@@ -689,18 +694,26 @@ const GarsonPanel = ({ onBack, rol = "garson" }) => {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [panel, menuData] = await Promise.all([
-        api.get("panel.php?type=all"),
-        api.get("panel.php?type=menu"),
-      ]);
+      const panel = await api.get("panel.php?type=all");
       if (panel.sessions) setSessions(panel.sessions);
       if (panel.orders) {
-        setOrders(panel.orders.map(o => ({ ...o, urunler: typeof o.urunler==="string" ? JSON.parse(o.urunler) : o.urunler })));
+        setOrders(panel.orders.map(o => {
+          let urunler = o.urunler;
+          if (typeof urunler === "string") {
+            try { urunler = JSON.parse(urunler); } catch { urunler = []; }
+          }
+          return { ...o, urunler: urunler || [], masa: parseInt(o.masa) };
+        }));
       }
       if (panel.notifications) setNotifs(panel.notifications);
+    } catch(e) { console.error("fetchAll error:", e); }
+
+    try {
+      const menuData = await api.get("panel.php?type=menu");
       if (menuData.menu) { setMenu(menuData.menu); setNewItem(p=>({...p,cat:Object.keys(menuData.menu)[0]||""})); }
       if (menuData.specials) setSpecials(menuData.specials);
-    } catch {}
+    } catch(e) { console.error("menu fetch error:", e); }
+
     setLoading(false);
   }, []);
 
@@ -753,7 +766,7 @@ const GarsonPanel = ({ onBack, rol = "garson" }) => {
 
   // Müşteri geçmişi hesaplama
   const customerHistory = (session) => {
-    const sOrders = orders.filter(o=>o.masa===parseInt(session.masa)&&o.musteri===session.ad);
+    const sOrders = orders.filter(o=>o.session_id===session.id || parseInt(o.masa)===parseInt(session.masa));
     const total   = sOrders.reduce((s,o)=>s+(o.toplam||0),0);
     return { orders:sOrders, total };
   };
@@ -824,7 +837,7 @@ const GarsonPanel = ({ onBack, rol = "garson" }) => {
           active.length===0
             ? <div style={{ textAlign:"center", color:"var(--muted)", marginTop:60 }}><div style={{ fontSize:36 }}>🪑</div><div style={{ marginTop:12, fontSize:14, fontStyle:"italic" }}>Şu an aktif masa yok</div></div>
             : active.map(s => {
-                const sOrders = orders.filter(o=>o.masa===parseInt(s.masa)&&o.musteri===s.ad);
+                const sOrders = orders.filter(o=>o.session_id===s.id || parseInt(o.masa)===parseInt(s.masa));
                 const total   = sOrders.reduce((a,o)=>a+(o.toplam||0),0);
                 const hasNew  = sOrders.some(o=>o.status==="yeni");
                 return (
