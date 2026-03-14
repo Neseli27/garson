@@ -586,6 +586,34 @@ const GarsonPanel = ({ onBack }) => {
   const [editMasa, setEditMasa] = useState("");
   const [newItem, setNewItem]   = useState({ cat:"", name:"", price:"", desc:"", wait:"" });
   const [newSpec, setNewSpec]   = useState({ name:"", price:"", desc:"" });
+  const [garsonOrder, setGarsonOrder] = useState(null);   // hangi masa için sipariş giriliyor
+  const [garsonCart, setGarsonCart]   = useState([]);     // garsonun sepeti
+  const [garsonLoading, setGarsonLoading] = useState(false);
+
+  const garsonAddToCart = (item) => setGarsonCart(prev => {
+    const ex = prev.find(c=>c.id===item.id);
+    if (ex) return prev.map(c=>c.id===item.id?{...c,qty:c.qty+1}:c);
+    return [...prev, {...item, qty:1}];
+  });
+  const garsonRemoveFromCart = (item) => setGarsonCart(prev => {
+    const ex = prev.find(c=>c.id===item.id);
+    if (!ex||ex.qty<=1) return prev.filter(c=>c.id!==item.id);
+    return prev.map(c=>c.id===item.id?{...c,qty:c.qty-1}:c);
+  });
+  const submitGarsonOrder = async () => {
+    if (!garsonCart.length || !garsonOrder || garsonLoading) return;
+    setGarsonLoading(true);
+    const urunler = garsonCart.map(c=>({ ad:c.name, adet:c.qty, fiyat:c.price, bekleme:c.wait||5 }));
+    const toplam  = garsonCart.reduce((s,c)=>s+c.price*c.qty, 0);
+    try {
+      await api.post("order.php", { action:"create", session_id:garsonOrder.id, masa:garsonOrder.masa, musteri:garsonOrder.ad, urunler, toplam, not:"[Garson tarafından eklendi]" });
+      playBeep(660,.25,2);
+      setGarsonCart([]);
+      setGarsonOrder(null);
+      fetchAll();
+    } catch { alert("Sipariş gönderilemedi."); }
+    setGarsonLoading(false);
+  };
 
   // Süre sayacı
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
@@ -783,6 +811,7 @@ const GarsonPanel = ({ onBack }) => {
 
                     {/* Masa aksiyon */}
                     <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap" }}>
+                      {AB("➕ Sipariş Ekle", ()=>{ setGarsonOrder(s); setGarsonCart([]); }, "58,138,92")}
                       {AB("⏸ Hesap & Askıya Al", ()=>sessionAction(s.id,"update","askida"), "201,145,58")}
                       {AB("🚫 Engelle", ()=>sessionAction(s.id,"update","engelli"), "192,64,64")}
                     </div>
@@ -955,6 +984,58 @@ const GarsonPanel = ({ onBack }) => {
           </div>
         );
       })()}
+
+      {/* Garson Sipariş Ekleme Popup */}
+      {garsonOrder && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.9)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:300, backdropFilter:"blur(4px)" }}>
+          <div style={{ width:"100%", maxWidth:525, background:"var(--surf)", borderRadius:"22px 22px 0 0", padding:"20px 18px 36px", maxHeight:"85vh", display:"flex", flexDirection:"column", animation:"fadeUp .3s ease-out" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14, flexShrink:0 }}>
+              <div>
+                <div style={{ fontFamily:"var(--fh)", fontSize:18, color:"var(--cream)" }}>➕ Sipariş Ekle</div>
+                <div style={{ fontSize:13, color:"var(--muted)" }}>Masa {garsonOrder.masa} · {garsonOrder.ad}</div>
+              </div>
+              <button onClick={()=>{ setGarsonOrder(null); setGarsonCart([]); }} style={{ background:"none", border:"none", color:"var(--muted)", cursor:"pointer", fontSize:24 }}>✕</button>
+            </div>
+            {garsonCart.length>0 && (
+              <div style={{ padding:"10px 14px", background:"rgba(58,138,92,.12)", border:"1px solid rgba(58,138,92,.35)", borderRadius:12, marginBottom:12, display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+                <div style={{ flex:1, fontSize:14, color:"var(--cream)" }}>{garsonCart.map(c=>`${c.qty}× ${c.name}`).join(", ")}</div>
+                <div style={{ fontFamily:"var(--fh)", color:"var(--gsoft)", fontSize:16, flexShrink:0 }}>{garsonCart.reduce((s,c)=>s+c.price*c.qty,0)}₺</div>
+              </div>
+            )}
+            <div style={{ flex:1, overflowY:"auto", marginBottom:12 }}>
+              {Object.entries(menu).map(([cat, items])=>(
+                <div key={cat} style={{ marginBottom:10 }}>
+                  <div style={{ fontSize:12, color:"var(--muted)", fontFamily:"var(--fh)", marginBottom:5, letterSpacing:.8 }}>{cat}</div>
+                  {items.map(item=>{
+                    const qty = garsonCart.find(c=>c.id===item.id)?.qty || 0;
+                    return (
+                      <div key={item.id} style={{ display:"flex", alignItems:"center", padding:"8px 10px", borderBottom:"1px solid var(--bord)", background:qty>0?"rgba(58,138,92,.06)":"transparent", transition:"background .2s" }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:14, color:"var(--cream)" }}>{item.name}</div>
+                          <div style={{ fontSize:11, color:"var(--muted)" }}>{item.price}₺ · ~{item.wait}dk</div>
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                          {qty>0 && <>
+                            <button onClick={()=>garsonRemoveFromCart(item)} style={{ width:26, height:26, borderRadius:"50%", background:"var(--surf2)", border:"1px solid var(--bord)", color:"var(--muted)", cursor:"pointer", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+                            <span style={{ fontFamily:"var(--fh)", fontSize:14, color:"var(--cream)", minWidth:16, textAlign:"center" }}>{qty}</span>
+                          </>}
+                          <button onClick={()=>garsonAddToCart(item)} style={{ width:28, height:28, borderRadius:"50%", background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", color:"#0b0704", cursor:"pointer", fontSize:18, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700 }}>+</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            <button onClick={submitGarsonOrder} disabled={!garsonCart.length||garsonLoading} style={{ width:"100%", padding:"14px", background:garsonCart.length?"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)":"var(--surf2)", border:"none", borderRadius:14, color:garsonCart.length?"#0b0704":"var(--muted)", cursor:garsonCart.length?"pointer":"not-allowed", fontFamily:"var(--fh)", fontSize:16, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", gap:8, flexShrink:0 }}>
+              {garsonLoading
+                ? <div style={{ width:18, height:18, borderRadius:"50%", border:"2px solid #8b5e2a", borderTopColor:"transparent", animation:"spin .8s linear infinite" }}/>
+                : `🛎 Siparişi Gönder${garsonCart.length?" ("+garsonCart.reduce((s,c)=>s+c.price*c.qty,0)+"₺)":""}`
+              }
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
