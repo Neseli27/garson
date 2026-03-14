@@ -1089,54 +1089,26 @@ const PinEntry = ({ rol, onSuccess, onBack }) => {
   );
 };
 
-const RoleSelect = ({ onSelect }) => (
-  <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"var(--bg)", padding:28 }}>
-    <div style={{ position:"fixed", inset:0, background:"radial-gradient(ellipse 70% 55% at 50% 30%, rgba(201,145,58,.06) 0%, transparent 70%)", pointerEvents:"none" }}/>
-    <div style={{ width:72, height:72, borderRadius:"50%", background:"linear-gradient(135deg,var(--gold) 0%,#6b3d10 100%)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, marginBottom:18, boxShadow:"0 0 36px rgba(201,145,58,.32)", animation:"float 4s ease-in-out infinite", position:"relative", zIndex:1 }}>🍽️</div>
-    <div style={{ fontFamily:"var(--fh)", fontSize:26, color:"var(--cream)", marginBottom:4, textAlign:"center", position:"relative", zIndex:1 }}>Bistro 7</div>
-    <div style={{ fontSize:13, color:"var(--muted)", fontStyle:"italic", marginBottom:36, position:"relative", zIndex:1 }}>Kim olduğunuzu seçin</div>
-
-    <div style={{ width:"100%", maxWidth:320, display:"flex", flexDirection:"column", gap:12, position:"relative", zIndex:1 }}>
-      {[
-        { rol:"musteri",  icon:"🧑", label:"Müşteri", desc:"Sipariş ver, menüyü incele", color:"var(--cream)", bg:"var(--surf2)", border:"var(--bord)" },
-        { rol:"garson",   icon:"👨‍🍳", label:"Garson",  desc:"Masaları ve siparişleri yönet", color:"#6aaae0",    bg:"rgba(58,106,154,.12)", border:"rgba(58,106,154,.4)" },
-        { rol:"isletmeci",icon:"👔", label:"İşletmeci","desc":"Tam yönetim, ciro ve raporlar", color:"var(--gsoft)", bg:"rgba(201,145,58,.1)", border:"rgba(201,145,58,.4)" },
-      ].map(r=>(
-        <button key={r.rol} onClick={()=>onSelect(r.rol)} style={{ padding:"16px 20px", background:r.bg, border:`1px solid ${r.border}`, borderRadius:16, cursor:"pointer", display:"flex", alignItems:"center", gap:16, textAlign:"left", transition:"all .2s" }}
-          onMouseEnter={e=>e.currentTarget.style.transform="translateX(4px)"}
-          onMouseLeave={e=>e.currentTarget.style.transform="translateX(0)"}
-        >
-          <span style={{ fontSize:28, flexShrink:0 }}>{r.icon}</span>
-          <div>
-            <div style={{ fontFamily:"var(--fh)", fontSize:17, color:r.color }}>{r.label}</div>
-            <div style={{ fontSize:12, color:"var(--muted)", marginTop:2 }}>{r.desc}</div>
-          </div>
-          <span style={{ marginLeft:"auto", color:"var(--muted)", fontSize:18 }}>›</span>
-        </button>
-      ))}
-    </div>
-  </div>
-);
-
 /* ══════════════════════════════════════════════════════════
    ROOT
 ══════════════════════════════════════════════════════════ */
 export default function App() {
-  // URL param: ?rol=garson | ?rol=isletmeci | default=musteri
-  const urlRol = new URLSearchParams(window.location.search).get("rol") || "musteri";
+  // URL parametresine göre rol belirlenir
+  // Müşteri: garson.vercel.app              (param yok)
+  // Garson:  garson.vercel.app?rol=garson   → direkt PIN
+  // İşletmeci: garson.vercel.app?rol=isletmeci → direkt PIN
+  const urlRol = new URLSearchParams(window.location.search).get("rol"); // null | "garson" | "isletmeci"
+  const isPersonel = urlRol === "garson" || urlRol === "isletmeci";
 
-  const [appRol, setAppRol]     = useState(urlRol === "musteri" ? null : null); // null = seçim/pin ekranı
-  const [showRoleSelect, setShowRoleSelect] = useState(urlRol === "musteri");
-  const [pinTarget, setPinTarget] = useState(null); // "garson" | "isletmeci"
-  const [authed, setAuthed]     = useState(urlRol === "musteri"); // müşteri PIN gerekmez
-
-  const [session, setSession]   = useState(null);
+  const [authed, setAuthed]         = useState(false);
+  const [session, setSession]       = useState(null);
   const [sessionStatus, setSessionStatus] = useState(null);
-  const [menu, setMenu]         = useState({});
-  const [specials, setSpecials] = useState([]);
+  const [menu, setMenu]             = useState({});
+  const [specials, setSpecials]     = useState([]);
   const [tableOrders, setTableOrders] = useState([]);
   const [menuLoaded, setMenuLoaded] = useState(false);
 
+  // Menü her zaman çekilir
   useEffect(() => {
     api.get("panel.php?type=menu").then(r => {
       if (r.menu) setMenu(r.menu);
@@ -1145,8 +1117,9 @@ export default function App() {
     }).catch(() => setMenuLoaded(true));
   }, []);
 
+  // Müşteri: daha önce kayıt varsa geri yükle
   useEffect(() => {
-    if (appRol !== "musteri") return;
+    if (isPersonel) return;
     const savedId = localStorage.getItem("sg_session_id");
     if (savedId) {
       api.get(`session.php?id=${savedId}`).then(r => {
@@ -1154,8 +1127,9 @@ export default function App() {
         else localStorage.removeItem("sg_session_id");
       }).catch(() => {});
     }
-  }, [appRol]);
+  }, []);
 
+  // Müşteri: oturum poll
   useEffect(() => {
     if (!session) return;
     const poll = async () => {
@@ -1172,35 +1146,26 @@ export default function App() {
     return () => clearInterval(interval);
   }, [session, sessionStatus]);
 
-  // ── Render ───────────────────────────────────────────────
+  // ── RENDER ───────────────────────────────────────────────
 
-  // 1. Rol seçim ekranı (müşteri için)
-  if (showRoleSelect && !appRol) {
-    return <RoleSelect onSelect={rol => {
-      setShowRoleSelect(false);
-      if (rol === "musteri") { setAppRol("musteri"); setAuthed(true); }
-      else { setPinTarget(rol); }
-    }} />;
-  }
-
-  // 2. PIN girişi
-  if (pinTarget && !authed) {
-    return <PinEntry
-      rol={pinTarget}
-      onSuccess={() => { setAppRol(pinTarget); setAuthed(true); setPinTarget(null); }}
-      onBack={() => { setPinTarget(null); setShowRoleSelect(true); }}
-    />;
-  }
-
-  // 3. Garson veya İşletmeci paneli
-  if (appRol === "garson" || appRol === "isletmeci") {
+  // Personel akışı: ?rol=garson veya ?rol=isletmeci
+  if (isPersonel) {
+    // PIN girilmemişse PIN ekranı
+    if (!authed) {
+      return <PinEntry
+        rol={urlRol}
+        onSuccess={() => setAuthed(true)}
+        onBack={() => window.location.href = window.location.pathname}
+      />;
+    }
+    // PIN doğrulandı → panel
     return <GarsonPanel
-      rol={appRol}
-      onBack={() => { setAppRol(null); setAuthed(false); setShowRoleSelect(true); }}
+      rol={urlRol}
+      onBack={() => setAuthed(false)}
     />;
   }
 
-  // 4. Müşteri akışı
+  // Müşteri akışı: varsayılan
   if (!menuLoaded) return (
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--bg)" }}>
       <div style={{ width:40, height:40, borderRadius:"50%", border:"3px solid var(--gdim)", borderTopColor:"var(--gold)", animation:"spin .8s linear infinite" }} />
@@ -1210,12 +1175,7 @@ export default function App() {
   if (!session) return <RegisterScreen onRegister={s => { setSession(s); setSessionStatus(s.durum); }} />;
   if (sessionStatus === "engelli") return <RegisterScreen blockedMsg="engelli" />;
   if (sessionStatus === "askida")  return <SuspendedScreen session={session} />;
-  if (sessionStatus === "bekliyor") return (
-    <>
-      <WaitingScreen session={session} />
-      <button onClick={() => { setAppRol(null); setShowRoleSelect(true); }} style={{ position:"fixed", bottom:20, right:20, background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:12, padding:"9px 16px", color:"var(--muted)", cursor:"pointer", fontSize:13, zIndex:999 }}>👔 Personel</button>
-    </>
-  );
+  if (sessionStatus === "bekliyor") return <WaitingScreen session={session} />;
 
   return (
     <CustomerChat
@@ -1224,7 +1184,7 @@ export default function App() {
       specials={specials}
       tableOrders={tableOrders}
       setTableOrders={setTableOrders}
-      onViewGarson={() => { setAppRol(null); setShowRoleSelect(true); }}
+      onViewGarson={() => {}}
     />
   );
 }
