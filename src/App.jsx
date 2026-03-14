@@ -571,7 +571,9 @@ const CustomerChat = ({ session, menu, specials, tableOrders, setTableOrders, on
 /* ══════════════════════════════════════════════════════════
    GARSON PANELİ
 ══════════════════════════════════════════════════════════ */
-const GarsonPanel = ({ onBack }) => {
+const GarsonPanel = ({ onBack, rol = "garson" }) => {
+  // rol: "garson" | "isletmeci"
+  const isIsletmeci = rol === "isletmeci";
   const [tab, setTab]           = useState("bekleyen");
   const [sessions, setSessions] = useState([]);
   const [orders, setOrders]     = useState([]);
@@ -714,7 +716,9 @@ const GarsonPanel = ({ onBack }) => {
       {/* Header */}
       <div style={{ padding:"13px 16px", borderBottom:"1px solid var(--bord)", display:"flex", alignItems:"center", gap:11, background:"var(--surf)", flexShrink:0 }}>
         <button onClick={onBack} style={{ background:"none", border:"none", color:"var(--muted)", cursor:"pointer", fontSize:21 }}>←</button>
-        <div style={{ fontFamily:"var(--fh)", fontSize:17, color:"var(--cream)" }}>👨‍🍳 Yönetim Paneli</div>
+        <div style={{ fontFamily:"var(--fh)", fontSize:17, color:"var(--cream)" }}>
+          {isIsletmeci ? "👔 İşletmeci Paneli" : "👨‍🍳 Garson Paneli"}
+        </div>
         {newCount>0 && <div style={{ marginLeft:"auto", background:"var(--red)", color:"#fff", borderRadius:20, padding:"3px 12px", fontSize:12, fontWeight:600, animation:"blink 1.4s ease-in-out infinite" }}>{newCount} YENİ</div>}
       </div>
 
@@ -722,9 +726,9 @@ const GarsonPanel = ({ onBack }) => {
       <div style={{ display:"flex", borderBottom:"1px solid var(--bord)", background:"rgba(22,14,8,.95)", flexShrink:0 }}>
         <TabBtn id="bekleyen"  label="⏳ Bekleyen"  badge={pending.length} />
         <TabBtn id="masalar"   label="🪑 Masalar"   badge={newOrdsCount} />
-        <TabBtn id="musteriler" label="👥 Müşteriler" badge={0} />
+        {isIsletmeci && <TabBtn id="musteriler" label="👥 Müşteriler" badge={0} />}
         <TabBtn id="bildirim"  label="🔔 Bildirim"  badge={unread} />
-        <TabBtn id="admin"     label="⚙️ Admin"     badge={0} />
+        {isIsletmeci && <TabBtn id="admin"     label="⚙️ Admin"     badge={0} />}
       </div>
 
       <div style={{ flex:1, overflowY:"auto", padding:14 }}>
@@ -777,7 +781,7 @@ const GarsonPanel = ({ onBack }) => {
                         </div>
                       </div>
                       <div style={{ textAlign:"right" }}>
-                        <div style={{ fontFamily:"var(--fh)", fontSize:20, color:"var(--gsoft)" }}>{total}₺</div>
+                        <div style={{ fontFamily:"var(--fh)", fontSize:20, color:"var(--gsoft)" }}>{isIsletmeci ? `${total}₺` : `${sOrders.length} sipariş`}</div>
                         <StatusBadge status={s.durum} />
                       </div>
                     </div>
@@ -1039,16 +1043,100 @@ const GarsonPanel = ({ onBack }) => {
     </div>
   );
 };
+/* ══════════════════════════════════════════════════════════
+   ROL SEÇİM EKRANI
+══════════════════════════════════════════════════════════ */
+// PIN'ler — ileride DB'den çekilebilir
+const PINS = { garson: "1234", isletmeci: "0000" };
+
+const PinEntry = ({ rol, onSuccess, onBack }) => {
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState("");
+  const isGarson = rol === "garson";
+
+  const check = () => {
+    if (pin === PINS[rol]) { onSuccess(); }
+    else { setErr("Hatalı PIN, tekrar deneyin."); setPin(""); }
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"var(--bg)", padding:28 }}>
+      <div style={{ width:64, height:64, borderRadius:"50%", background: isGarson ? "linear-gradient(135deg,#3a6a9a 0%,#1a3a5a 100%)" : "linear-gradient(135deg,var(--gold) 0%,#6b3d10 100%)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, marginBottom:18, boxShadow:`0 0 28px ${isGarson ? "rgba(58,106,154,.35)" : "rgba(201,145,58,.35)"}`, animation:"float 4s ease-in-out infinite" }}>
+        {isGarson ? "👨‍🍳" : "👔"}
+      </div>
+      <div style={{ fontFamily:"var(--fh)", fontSize:22, color:"var(--cream)", marginBottom:6 }}>
+        {isGarson ? "Garson Girişi" : "İşletmeci Girişi"}
+      </div>
+      <div style={{ fontSize:13, color:"var(--muted)", fontStyle:"italic", marginBottom:28 }}>PIN kodunuzu girin</div>
+
+      <div style={{ width:"100%", maxWidth:280 }}>
+        <input
+          type="password" value={pin} onChange={e=>setPin(e.target.value)} placeholder="••••"
+          onKeyDown={e=>e.key==="Enter"&&check()}
+          maxLength={6}
+          style={{ width:"100%", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14, padding:"16px 20px", color:"var(--cream)", fontSize:28, outline:"none", textAlign:"center", letterSpacing:8, marginBottom:12 }}
+          onFocus={e=>e.target.style.borderColor="var(--gdim)"}
+          onBlur={e=>e.target.style.borderColor="var(--bord)"}
+          autoFocus
+        />
+        {err && <div style={{ padding:"8px 12px", background:"rgba(192,64,64,.15)", border:"1px solid rgba(192,64,64,.35)", borderRadius:10, fontSize:13, color:"#e06060", marginBottom:12, textAlign:"center" }}>⚠️ {err}</div>}
+        <button onClick={check} style={{ width:"100%", padding:"14px", background:`linear-gradient(135deg,${isGarson?"#3a6a9a 0%,#1a3a5a":"var(--gold) 0%,#8b5e2a"} 100%)`, border:"none", borderRadius:12, color: isGarson ? "#e8f0f8" : "#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:17, fontWeight:600, boxShadow:`0 4px 16px ${isGarson?"rgba(58,106,154,.3)":"rgba(201,145,58,.3)"}` }}>
+          Giriş Yap →
+        </button>
+        <button onClick={onBack} style={{ width:"100%", padding:"11px", marginTop:10, background:"none", border:"1px solid var(--bord)", borderRadius:12, color:"var(--muted)", cursor:"pointer", fontFamily:"var(--fb)", fontSize:14 }}>← Geri</button>
+      </div>
+    </div>
+  );
+};
+
+const RoleSelect = ({ onSelect }) => (
+  <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"var(--bg)", padding:28 }}>
+    <div style={{ position:"fixed", inset:0, background:"radial-gradient(ellipse 70% 55% at 50% 30%, rgba(201,145,58,.06) 0%, transparent 70%)", pointerEvents:"none" }}/>
+    <div style={{ width:72, height:72, borderRadius:"50%", background:"linear-gradient(135deg,var(--gold) 0%,#6b3d10 100%)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, marginBottom:18, boxShadow:"0 0 36px rgba(201,145,58,.32)", animation:"float 4s ease-in-out infinite", position:"relative", zIndex:1 }}>🍽️</div>
+    <div style={{ fontFamily:"var(--fh)", fontSize:26, color:"var(--cream)", marginBottom:4, textAlign:"center", position:"relative", zIndex:1 }}>Bistro 7</div>
+    <div style={{ fontSize:13, color:"var(--muted)", fontStyle:"italic", marginBottom:36, position:"relative", zIndex:1 }}>Kim olduğunuzu seçin</div>
+
+    <div style={{ width:"100%", maxWidth:320, display:"flex", flexDirection:"column", gap:12, position:"relative", zIndex:1 }}>
+      {[
+        { rol:"musteri",  icon:"🧑", label:"Müşteri", desc:"Sipariş ver, menüyü incele", color:"var(--cream)", bg:"var(--surf2)", border:"var(--bord)" },
+        { rol:"garson",   icon:"👨‍🍳", label:"Garson",  desc:"Masaları ve siparişleri yönet", color:"#6aaae0",    bg:"rgba(58,106,154,.12)", border:"rgba(58,106,154,.4)" },
+        { rol:"isletmeci",icon:"👔", label:"İşletmeci","desc":"Tam yönetim, ciro ve raporlar", color:"var(--gsoft)", bg:"rgba(201,145,58,.1)", border:"rgba(201,145,58,.4)" },
+      ].map(r=>(
+        <button key={r.rol} onClick={()=>onSelect(r.rol)} style={{ padding:"16px 20px", background:r.bg, border:`1px solid ${r.border}`, borderRadius:16, cursor:"pointer", display:"flex", alignItems:"center", gap:16, textAlign:"left", transition:"all .2s" }}
+          onMouseEnter={e=>e.currentTarget.style.transform="translateX(4px)"}
+          onMouseLeave={e=>e.currentTarget.style.transform="translateX(0)"}
+        >
+          <span style={{ fontSize:28, flexShrink:0 }}>{r.icon}</span>
+          <div>
+            <div style={{ fontFamily:"var(--fh)", fontSize:17, color:r.color }}>{r.label}</div>
+            <div style={{ fontSize:12, color:"var(--muted)", marginTop:2 }}>{r.desc}</div>
+          </div>
+          <span style={{ marginLeft:"auto", color:"var(--muted)", fontSize:18 }}>›</span>
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
+/* ══════════════════════════════════════════════════════════
+   ROOT
+══════════════════════════════════════════════════════════ */
 export default function App() {
+  // URL param: ?rol=garson | ?rol=isletmeci | default=musteri
+  const urlRol = new URLSearchParams(window.location.search).get("rol") || "musteri";
+
+  const [appRol, setAppRol]     = useState(urlRol === "musteri" ? null : null); // null = seçim/pin ekranı
+  const [showRoleSelect, setShowRoleSelect] = useState(urlRol === "musteri");
+  const [pinTarget, setPinTarget] = useState(null); // "garson" | "isletmeci"
+  const [authed, setAuthed]     = useState(urlRol === "musteri"); // müşteri PIN gerekmez
+
   const [session, setSession]   = useState(null);
   const [sessionStatus, setSessionStatus] = useState(null);
   const [menu, setMenu]         = useState({});
   const [specials, setSpecials] = useState([]);
   const [tableOrders, setTableOrders] = useState([]);
-  const [view, setView]         = useState("customer");
   const [menuLoaded, setMenuLoaded] = useState(false);
 
-  // Menüyü çek
   useEffect(() => {
     api.get("panel.php?type=menu").then(r => {
       if (r.menu) setMenu(r.menu);
@@ -1057,8 +1145,8 @@ export default function App() {
     }).catch(() => setMenuLoaded(true));
   }, []);
 
-  // Daha önce kayıt varsa localStorage'dan al
   useEffect(() => {
+    if (appRol !== "musteri") return;
     const savedId = localStorage.getItem("sg_session_id");
     if (savedId) {
       api.get(`session.php?id=${savedId}`).then(r => {
@@ -1066,9 +1154,8 @@ export default function App() {
         else localStorage.removeItem("sg_session_id");
       }).catch(() => {});
     }
-  }, []);
+  }, [appRol]);
 
-  // Oturum durumunu poll et (3 saniyede bir)
   useEffect(() => {
     if (!session) return;
     const poll = async () => {
@@ -1085,41 +1172,59 @@ export default function App() {
     return () => clearInterval(interval);
   }, [session, sessionStatus]);
 
-  const renderContent = () => {
-    if (view === "garson") return <GarsonPanel onBack={() => setView("customer")} />;
+  // ── Render ───────────────────────────────────────────────
 
-    if (!menuLoaded) return (
-      <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--bg)" }}>
-        <div style={{ width:40, height:40, borderRadius:"50%", border:"3px solid var(--gdim)", borderTopColor:"var(--gold)", animation:"spin .8s linear infinite" }} />
-      </div>
-    );
+  // 1. Rol seçim ekranı (müşteri için)
+  if (showRoleSelect && !appRol) {
+    return <RoleSelect onSelect={rol => {
+      setShowRoleSelect(false);
+      if (rol === "musteri") { setAppRol("musteri"); setAuthed(true); }
+      else { setPinTarget(rol); }
+    }} />;
+  }
 
-    if (!session) return <RegisterScreen onRegister={s => { setSession(s); setSessionStatus(s.durum); }} />;
-    if (sessionStatus === "engelli") return <RegisterScreen blockedMsg="engelli" />;
-    if (sessionStatus === "askida")  return <SuspendedScreen session={session} />;
-    if (sessionStatus === "bekliyor") return (
-      <>
-        <WaitingScreen session={session} />
-        <button onClick={() => setView("garson")} style={{ position:"fixed", bottom:20, right:20, background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:12, padding:"9px 16px", color:"var(--muted)", cursor:"pointer", fontSize:13, zIndex:999 }}>👨‍🍳</button>
-      </>
-    );
-    return null;
-  };
+  // 2. PIN girişi
+  if (pinTarget && !authed) {
+    return <PinEntry
+      rol={pinTarget}
+      onSuccess={() => { setAppRol(pinTarget); setAuthed(true); setPinTarget(null); }}
+      onBack={() => { setPinTarget(null); setShowRoleSelect(true); }}
+    />;
+  }
 
-  const content = renderContent();
+  // 3. Garson veya İşletmeci paneli
+  if (appRol === "garson" || appRol === "isletmeci") {
+    return <GarsonPanel
+      rol={appRol}
+      onBack={() => { setAppRol(null); setAuthed(false); setShowRoleSelect(true); }}
+    />;
+  }
+
+  // 4. Müşteri akışı
+  if (!menuLoaded) return (
+    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--bg)" }}>
+      <div style={{ width:40, height:40, borderRadius:"50%", border:"3px solid var(--gdim)", borderTopColor:"var(--gold)", animation:"spin .8s linear infinite" }} />
+    </div>
+  );
+
+  if (!session) return <RegisterScreen onRegister={s => { setSession(s); setSessionStatus(s.durum); }} />;
+  if (sessionStatus === "engelli") return <RegisterScreen blockedMsg="engelli" />;
+  if (sessionStatus === "askida")  return <SuspendedScreen session={session} />;
+  if (sessionStatus === "bekliyor") return (
+    <>
+      <WaitingScreen session={session} />
+      <button onClick={() => { setAppRol(null); setShowRoleSelect(true); }} style={{ position:"fixed", bottom:20, right:20, background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:12, padding:"9px 16px", color:"var(--muted)", cursor:"pointer", fontSize:13, zIndex:999 }}>👔 Personel</button>
+    </>
+  );
 
   return (
-    <>
-      {content !== null ? content : (
-        <CustomerChat
-          session={session}
-          menu={menu}
-          specials={specials}
-          tableOrders={tableOrders}
-          setTableOrders={setTableOrders}
-          onViewGarson={() => setView("garson")}
-        />
-      )}
-    </>
+    <CustomerChat
+      session={session}
+      menu={menu}
+      specials={specials}
+      tableOrders={tableOrders}
+      setTableOrders={setTableOrders}
+      onViewGarson={() => { setAppRol(null); setShowRoleSelect(true); }}
+    />
   );
 }
