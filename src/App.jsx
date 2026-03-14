@@ -816,8 +816,8 @@ const GarsonPanel = ({ onBack, rol = "garson" }) => {
                     {/* Masa aksiyon */}
                     <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap" }}>
                       {AB("➕ Sipariş Ekle", ()=>{ setGarsonOrder(s); setGarsonCart([]); }, "58,138,92")}
-                      {AB("⏸ Hesap & Askıya Al", ()=>sessionAction(s.id,"update","askida"), "201,145,58")}
-                      {AB("🚫 Engelle", ()=>sessionAction(s.id,"update","engelli"), "192,64,64")}
+                      {isIsletmeci && AB("⏸ Hesap & Askıya Al", ()=>sessionAction(s.id,"update","askida"), "201,145,58")}
+                      {isIsletmeci && AB("🚫 Engelle", ()=>sessionAction(s.id,"update","engelli"), "192,64,64")}
                     </div>
                   </div>
                 );
