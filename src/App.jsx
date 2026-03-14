@@ -326,54 +326,114 @@ const MenuView = ({ menu, specials, cart, onAdd, onRemove, onOrder, orderLoading
 const TableView = ({ session, tableOrders, onCallWaiter, onBill }) => {
   const [payModal, setPayModal] = useState(false);
   const [pay, setPay] = useState(null);
+
+  // Tüm ürünleri tek listede topla
+  const allItems = tableOrders.flatMap(o => o.urunler || []);
   const total = tableOrders.reduce((s,o) => s + (o.toplam||0), 0);
+
+  // Ürünleri grupla (aynı ürünleri birleştir)
+  const grouped = allItems.reduce((acc, u) => {
+    const ex = acc.find(i => i.ad === u.ad && i.fiyat === u.fiyat);
+    if (ex) ex.adet += u.adet;
+    else acc.push({ ...u });
+    return acc;
+  }, []);
+
   return (
-    <div style={{ height:"100%", overflowY:"auto", padding:14 }}>
-      <div style={{ padding:"12px 15px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14, marginBottom:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div>
-          <div style={{ fontFamily:"var(--fh)", fontSize:15, color:"var(--cream)" }}>{session.ad}</div>
-          <div style={{ fontSize:12, color:"var(--muted)" }}>Masa {session.masa}</div>
-        </div>
-        <StatusBadge status={session.durum} />
-      </div>
-      <button onClick={onCallWaiter} style={{ width:"100%", padding:"13px 18px", marginBottom:12, background:"rgba(58,106,154,.15)", border:"1px solid rgba(58,106,154,.45)", borderRadius:14, color:"#6aaae0", cursor:"pointer", fontFamily:"var(--fh)", fontSize:15 }}>🔔 Garson Çağır</button>
-      {tableOrders.length === 0
-        ? <div style={{ textAlign:"center", color:"var(--muted)", marginTop:50 }}><div style={{ fontSize:36 }}>🍽️</div><div style={{ marginTop:12, fontSize:14, fontStyle:"italic" }}>Henüz sipariş yok</div></div>
-        : <>
-          {tableOrders.map(o => (
-            <div key={o.id} style={{ marginBottom:11, padding:"12px 14px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:7 }}>
-                <span style={{ fontSize:12, color:"var(--muted)" }}>🕐 {o.created_at?.slice(11,16)||o.time||""}</span>
-                <span style={{ fontSize:12, padding:"2px 10px", borderRadius:20, background:o.status==="yeni"?"rgba(192,64,64,.2)":o.status==="hazırlanıyor"?"rgba(201,145,58,.2)":"rgba(58,138,92,.2)", color:o.status==="yeni"?"#e06060":o.status==="hazırlanıyor"?"var(--gsoft)":"#3aaa6a" }}>{o.status}</span>
-              </div>
-              {(o.urunler||[]).map((u,i) => (
-                <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:14, color:"var(--cream)", padding:"2px 0" }}>
-                  <span>{u.adet}× {u.ad}</span><span style={{ color:"var(--gsoft)" }}>{u.adet*u.fiyat}₺</span>
-                </div>
-              ))}
-            </div>
-          ))}
-          <div style={{ padding:"13px 16px", background:"var(--gdim)", border:"1px solid var(--bord)", borderRadius:14, display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:13 }}>
-            <span style={{ fontFamily:"var(--fh)", color:"var(--cream)", fontSize:15 }}>Toplam</span>
-            <span style={{ fontFamily:"var(--fh)", color:"var(--gsoft)", fontSize:22 }}>{total}₺</span>
+    <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
+      <div style={{ flex:1, overflowY:"auto", padding:14 }}>
+
+        {/* Müşteri & Masa bilgisi */}
+        <div style={{ padding:"12px 15px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14, marginBottom:14, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <div style={{ fontFamily:"var(--fh)", fontSize:16, color:"var(--cream)" }}>{session.ad}</div>
+            <div style={{ fontSize:12, color:"var(--muted)" }}>Masa {session.masa}</div>
           </div>
-          <button onClick={() => setPayModal(true)} style={{ width:"100%", padding:"13px 18px", background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:14, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:16, fontWeight:600 }}>💳 Hesap İstiyorum</button>
-        </>
-      }
+          <StatusBadge status={session.durum} />
+        </div>
+
+        {/* Garson çağır */}
+        <button onClick={onCallWaiter} style={{ width:"100%", padding:"13px 18px", marginBottom:14, background:"rgba(58,106,154,.15)", border:"1px solid rgba(58,106,154,.45)", borderRadius:14, color:"#6aaae0", cursor:"pointer", fontFamily:"var(--fh)", fontSize:15, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+          🔔 Garson Çağır
+        </button>
+
+        {/* Sipariş yok */}
+        {grouped.length === 0 && (
+          <div style={{ textAlign:"center", color:"var(--muted)", marginTop:50 }}>
+            <div style={{ fontSize:40 }}>🍽️</div>
+            <div style={{ marginTop:12, fontSize:14, fontStyle:"italic" }}>Henüz sipariş verilmedi</div>
+          </div>
+        )}
+
+        {/* Sipariş özeti — gruplu liste */}
+        {grouped.length > 0 && (
+          <div style={{ background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14, overflow:"hidden", marginBottom:12 }}>
+            <div style={{ padding:"11px 15px", borderBottom:"1px solid var(--bord)", fontFamily:"var(--fh)", fontSize:13, color:"var(--muted)", letterSpacing:.8 }}>
+              SİPARİŞLERİNİZ
+            </div>
+            {grouped.map((u, i) => (
+              <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"11px 15px", borderBottom: i < grouped.length-1 ? "1px solid var(--bord)" : "none" }}>
+                <div>
+                  <div style={{ fontSize:15, color:"var(--cream)" }}>{u.ad}</div>
+                  <div style={{ fontSize:12, color:"var(--muted)", marginTop:1 }}>{u.adet} adet × {u.fiyat}₺</div>
+                </div>
+                <div style={{ fontFamily:"var(--fh)", fontSize:15, color:"var(--gsoft)", fontWeight:600 }}>
+                  {u.adet * u.fiyat}₺
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Sipariş durumları */}
+        {tableOrders.length > 0 && (
+          <div style={{ marginBottom:14 }}>
+            {tableOrders.map(o => (
+              <div key={o.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 12px", marginBottom:5, background:"var(--surf)", borderRadius:10, border:`1px solid ${o.status==="yeni"?"rgba(192,64,64,.3)":o.status==="hazırlanıyor"?"rgba(201,145,58,.3)":"rgba(58,138,92,.3)"}` }}>
+                <span style={{ fontSize:12, color:"var(--muted)" }}>🕐 {o.created_at?.slice(11,16)||o.time||""}</span>
+                <span style={{ fontSize:12, padding:"2px 10px", borderRadius:20,
+                  background: o.status==="yeni"?"rgba(192,64,64,.18)":o.status==="hazırlanıyor"?"rgba(201,145,58,.18)":"rgba(58,138,92,.18)",
+                  color: o.status==="yeni"?"#e06060":o.status==="hazırlanıyor"?"var(--gsoft)":"#3aaa6a"
+                }}>
+                  {o.status==="yeni"?"⏳ Sipariş alındı":o.status==="hazırlanıyor"?"🔥 Hazırlanıyor":"✅ Hazır — geliyor!"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Alt: Toplam + Hesap butonu */}
+      {grouped.length > 0 && (
+        <div style={{ padding:"12px 14px 20px", borderTop:"1px solid var(--bord)", background:"rgba(22,14,8,.95)", backdropFilter:"blur(12px)", flexShrink:0 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+            <span style={{ fontFamily:"var(--fh)", color:"var(--cream)", fontSize:16 }}>Toplam Tutar</span>
+            <span style={{ fontFamily:"var(--fh)", color:"var(--gsoft)", fontSize:26 }}>{total}₺</span>
+          </div>
+          <button onClick={() => setPayModal(true)} style={{ width:"100%", padding:"14px 18px", background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:14, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:17, fontWeight:600, boxShadow:"0 4px 16px rgba(201,145,58,.3)" }}>
+            💳 Hesap İstiyorum
+          </button>
+        </div>
+      )}
+
+      {/* Ödeme yöntemi modal */}
       {payModal && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.85)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:200, backdropFilter:"blur(4px)" }}>
-          <div style={{ width:"100%", maxWidth:480, background:"var(--surf)", borderRadius:"22px 22px 0 0", padding:"22px 18px 38px", animation:"fadeUp .3s ease-out" }}>
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.88)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:200, backdropFilter:"blur(4px)" }}>
+          <div style={{ width:"100%", maxWidth:525, background:"var(--surf)", borderRadius:"22px 22px 0 0", padding:"22px 18px 38px", animation:"fadeUp .3s ease-out" }}>
             <div style={{ fontFamily:"var(--fh)", fontSize:19, color:"var(--cream)", marginBottom:3 }}>Ödeme Yöntemi</div>
             <div style={{ fontSize:13, color:"var(--muted)", fontStyle:"italic", marginBottom:18 }}>Nasıl ödemek istersiniz?</div>
             {[{id:"nakit",icon:"💵",label:"Nakit"},{id:"kart",icon:"💳",label:"Kredi / Banka Kartı"},{id:"qr",icon:"📱",label:"QR Kod ile Ödeme"}].map(p => (
               <button key={p.id} onClick={() => setPay(p.id)} style={{ width:"100%", padding:"12px 17px", marginBottom:9, background:pay===p.id?"var(--gdim)":"var(--surf2)", border:`1px solid ${pay===p.id?"var(--gold)":"var(--bord)"}`, borderRadius:13, color:"var(--cream)", cursor:"pointer", display:"flex", alignItems:"center", gap:13, fontSize:15, transition:"all .2s" }}>
-                <span style={{ fontSize:22 }}>{p.icon}</span><span>{p.label}</span>
+                <span style={{ fontSize:22 }}>{p.icon}</span>
+                <span>{p.label}</span>
                 {pay===p.id && <span style={{ marginLeft:"auto", color:"var(--gold)" }}>✓</span>}
               </button>
             ))}
             <div style={{ display:"flex", gap:9, marginTop:7 }}>
               <button onClick={() => setPayModal(false)} style={{ flex:1, padding:"11px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:12, color:"var(--muted)", cursor:"pointer", fontSize:14 }}>Vazgeç</button>
-              <button disabled={!pay} onClick={() => { onBill(pay,total); setPayModal(false); setPay(null); }} style={{ flex:2, padding:"11px", background:pay?"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)":"var(--surf2)", border:"none", borderRadius:12, color:pay?"#0b0704":"var(--muted)", cursor:pay?"pointer":"not-allowed", fontFamily:"var(--fh)", fontSize:15, fontWeight:600, transition:"all .2s" }}>Hesabı İste ✓</button>
+              <button disabled={!pay} onClick={() => { onBill(pay,total); setPayModal(false); setPay(null); }} style={{ flex:2, padding:"11px", background:pay?"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)":"var(--surf2)", border:"none", borderRadius:12, color:pay?"#0b0704":"var(--muted)", cursor:pay?"pointer":"not-allowed", fontFamily:"var(--fh)", fontSize:15, fontWeight:600, transition:"all .2s" }}>
+                Hesabı İste ✓
+              </button>
             </div>
           </div>
         </div>
@@ -520,7 +580,7 @@ const CustomerChat = ({ session, menu, specials, tableOrders, setTableOrders, on
       </div>
       {/* Tabs */}
       <div style={{ display:"flex", borderBottom:"1px solid var(--bord)", background:"rgba(22,14,8,.9)", flexShrink:0, position:"relative", zIndex:10 }}>
-        {[{id:"chat",label:"💬 Garson"},{id:"menu",label:`📋 Menü${cart.length>0?" ("+cart.reduce((s,c)=>s+c.qty,0)+")":""}`},{id:"table",label:`🛒 Masa${tableOrders.length>0?" ●":""}`}].map(({id,label}) => (
+        {[{id:"chat",label:"💬 Garson"},{id:"menu",label:`📋 Menü${cart.length>0?" ("+cart.reduce((s,c)=>s+c.qty,0)+")":""}`},{id:"table",label:`🧾 Hesap${tableOrders.length>0?" ●":""}`}].map(({id,label}) => (
           <button key={id} onClick={() => setTab(id)} style={{ flex:1, padding:"10px 0", background:"none", border:"none", cursor:"pointer", fontFamily:"var(--fb)", fontSize:13, color:tab===id?"var(--gsoft)":"var(--muted)", borderBottom:tab===id?"2px solid var(--gold)":"2px solid transparent", transition:"all .2s" }}>{label}</button>
         ))}
       </div>
