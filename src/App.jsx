@@ -530,7 +530,7 @@ const CatAdder = ({ menu, fetchAll }) => {
       if (r.ok || r.msg === "zaten var") {
         setMsg("✅ Kategori eklendi: " + k);
         setKat("");
-        fetchAll();
+        await fetchAll(); // await ile güncellemenin bitmesini bekle
       } else {
         setMsg("❌ " + (r.error || "Bilinmeyen hata"));
       }
@@ -652,6 +652,7 @@ const StaffPanel = ({ staff, onLogout }) => {
   const [garsonLoading, setGarsonLoading] = useState(false);
   const [yTab, setYTab]       = useState("ozet"); // yönetim alt sekme
   const [menuSubTab, setMenuSubTab] = useState("kategori"); // menü alt sekme: kategori | urun | liste
+  const switchMenuTab = (t) => { setMenuSubTab(t); fetchAll(); }; // sekme değişince menüyü yenile
   const [newCatName, setNewCatName] = useState(""); // yeni kategori adı
   const [newMasa, setNewMasa]   = useState("");
   const [newItem, setNewItem]   = useState({ cat: "", name: "", price: "", desc: "", wait: "" });
@@ -681,8 +682,8 @@ const StaffPanel = ({ staff, onLogout }) => {
       if (p.sessions) setSessions(p.sessions);
       if (p.orders) setOrders(p.orders.map(o => ({ ...o, urunler: typeof o.urunler === "string" ? (JSON.parse(o.urunler) || []) : (o.urunler || []) })));
       if (p.notifications) setNotifs(p.notifications);
-      if (m.menu) { setMenu(m.menu); if (!newItem.cat) setNewItem(x => ({ ...x, cat: Object.keys(m.menu)[0] || "" })); }
-      if (m.specials) setSpecials(m.specials);
+      if (m.menu !== undefined) { setMenu(m.menu); }
+      if (m.specials !== undefined) setSpecials(m.specials || []);
       if (t.tables) setTables(t.tables);
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -1016,7 +1017,7 @@ const StaffPanel = ({ staff, onLogout }) => {
               {/* Menü alt sekmeleri */}
               <div style={{display:"flex",gap:0,marginBottom:16,background:"var(--surf2)",borderRadius:12,padding:3}}>
                 {[["kategori","🗂 Kategori"],["urun","➕ Ürün Ekle"],["liste","📋 Ürün Listesi"]].map(([id,label])=>(
-                  <button key={id} onClick={()=>setMenuSubTab(id)} style={{flex:1,padding:"8px 4px",background:menuSubTab===id?"var(--surf)":"transparent",border:"none",borderRadius:10,cursor:"pointer",fontSize:12,color:menuSubTab===id?"var(--gsoft)":"var(--muted)",fontWeight:menuSubTab===id?600:400,transition:"all .2s"}}>{label}</button>
+                  <button key={id} onClick={()=>switchMenuTab(id)} style={{flex:1,padding:"8px 4px",background:menuSubTab===id?"var(--surf)":"transparent",border:"none",borderRadius:10,cursor:"pointer",fontSize:12,color:menuSubTab===id?"var(--gsoft)":"var(--muted)",fontWeight:menuSubTab===id?600:400,transition:"all .2s"}}>{label}</button>
                 ))}
               </div>
 
