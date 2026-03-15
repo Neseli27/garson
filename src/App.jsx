@@ -582,7 +582,6 @@ const MenuManager = ({ venueId }) => {
       setCatName("");
       setCats(prev => prev.includes(k) ? prev : [...prev, k]);
       if (!pCat) setPCat(k);
-      load();
     } else {
       flash("❌ " + (r.error || "Hata"));
     }
