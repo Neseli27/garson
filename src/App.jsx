@@ -506,6 +506,62 @@ const CustomerChat = ({ session, venueAd }) => {
 };
 
 
+
+/* ══════════════════════════════════════════════════════════
+   CAT ADDER — Bağımsız bileşen (closure sorunundan kaçınır)
+══════════════════════════════════════════════════════════ */
+const CatAdder = ({ menu, fetchAll }) => {
+  const [kat, setKat]   = useState("");
+  const [msg, setMsg]   = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const add = async () => {
+    const k = kat.trim();
+    if (!k) { setMsg("⚠️ Kategori adı boş olamaz."); return; }
+    setBusy(true); setMsg("");
+    try {
+      const token = localStorage.getItem("sg_token");
+      const res = await fetch(`${API}/panel.php`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "cat_add", kategori: k, _token: token }),
+      });
+      const r = await res.json();
+      if (r.ok || r.msg === "zaten var") {
+        setMsg("✅ Kategori eklendi: " + k);
+        setKat("");
+        fetchAll();
+      } else {
+        setMsg("❌ " + (r.error || "Bilinmeyen hata"));
+      }
+    } catch (e) {
+      setMsg("❌ Bağlantı hatası: " + e.message);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div style={{ padding:"14px 15px", background:"var(--surf2)", border:"1px solid var(--gdim)", borderRadius:14, marginTop:14 }}>
+      <div style={{ fontSize:13, color:"var(--muted)", marginBottom:10, fontFamily:"var(--fh)" }}>Yeni Kategori Ekle</div>
+      <input
+        type="text" value={kat}
+        onChange={e => setKat(e.target.value)}
+        onKeyDown={e => e.key === "Enter" && add()}
+        placeholder="Örn: ☕ Kahveler, 🍰 Tatlılar"
+        style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"11px 13px", color:"var(--cream)", fontSize:14, outline:"none", marginBottom:10 }}
+      />
+      {msg && <div style={{ fontSize:13, color: msg.startsWith("✅") ? "#3aaa6a" : "#e06060", marginBottom:10 }}>{msg}</div>}
+      <button
+        onClick={add}
+        disabled={busy}
+        style={{ width:"100%", padding:"11px", background: busy ? "var(--surf)" : "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color: busy ? "var(--muted)" : "#0b0704", cursor: busy ? "not-allowed" : "pointer", fontFamily:"var(--fh)", fontSize:14, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}
+      >
+        {busy ? <><Spin /> Ekleniyor...</> : "+ Kategori Oluştur"}
+      </button>
+    </div>
+  );
+};
+
 /* ══════════════════════════════════════════════════════════
    CHANGE PASSWORD SCREEN (ilk giriş)
 ══════════════════════════════════════════════════════════ */
@@ -976,21 +1032,7 @@ const StaffPanel = ({ staff, onLogout }) => {
                     </div>
                   ))
                 }
-                <div style={{...card({border:"1px solid var(--gdim)",marginTop:14})}}>
-                  <div style={{fontSize:13,color:"var(--muted)",marginBottom:10,fontFamily:"var(--fh)"}}>Yeni Kategori Ekle</div>
-                  <input type="text" value={newCatName} onChange={e=>setNewCatName(e.target.value)} placeholder="Örn: ☕ Kahveler, 🍰 Tatlılar"
-                    style={{width:"100%",background:"var(--surf)",border:"1px solid var(--bord)",borderRadius:9,padding:"11px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:10}}
-                    onKeyDown={e=>e.key==="Enter"&&e.currentTarget.nextSibling.click()}
-                  />
-                  <button onClick={async()=>{
-                    const kat = newCatName.trim();
-                    if(!kat) return;
-                    if(menu[kat]) { alert("Bu kategori zaten var!"); return; }
-                    const r = await post("panel.php",{action:"cat_add",kategori:kat});
-                    if(r.ok) { setNewCatName(""); fetchAll(); }
-                    else alert("Hata: " + (r.error||"bilinmeyen"));
-                  }} style={{width:"100%",padding:"11px",background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:"#0b0704",cursor:"pointer",fontFamily:"var(--fh)",fontSize:14,fontWeight:600}}>+ Kategori Oluştur</button>
-                </div>
+                <CatAdder menu={menu} fetchAll={fetchAll} />
               </>}
 
               {/* ── ÜRÜN EKLE ── */}
