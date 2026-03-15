@@ -507,57 +507,282 @@ const CustomerChat = ({ session, venueAd }) => {
 
 
 
-/* ══════════════════════════════════════════════════════════
-   CAT ADDER — Bağımsız bileşen (closure sorunundan kaçınır)
-══════════════════════════════════════════════════════════ */
-const CatAdder = ({ menu, fetchAll }) => {
-  const [kat, setKat]   = useState("");
-  const [msg, setMsg]   = useState("");
-  const [busy, setBusy] = useState(false);
 
-  const add = async () => {
-    const k = kat.trim();
-    if (!k) { setMsg("⚠️ Kategori adı boş olamaz."); return; }
-    setBusy(true); setMsg("");
-    try {
-      const token = localStorage.getItem("sg_token");
-      const res = await fetch(`${API}/panel.php`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: "cat_add", kategori: k, _token: token }),
-      });
-      const r = await res.json();
-      if (r.ok || r.msg === "zaten var") {
-        setMsg("✅ Kategori eklendi: " + k);
-        setKat("");
-        await fetchAll(); // await ile güncellemenin bitmesini bekle
-      } else {
-        setMsg("❌ " + (r.error || "Bilinmeyen hata"));
-      }
-    } catch (e) {
-      setMsg("❌ Bağlantı hatası: " + e.message);
-    }
-    setBusy(false);
+/* ══════════════════════════════════════════════════════════
+   MENU MANAGER — Tamamen bağımsız, kendi state'i var
+══════════════════════════════════════════════════════════ */
+const MenuManager = ({ venueId }) => {
+  const [tab, setTab]         = useState("liste");
+  const [cats, setCats]       = useState([]);    // string[]
+  const [items, setItems]     = useState([]);    // tüm ürünler flat
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg]         = useState("");
+
+  // Kategori formu
+  const [catName, setCatName]   = useState("");
+  const [catBusy, setCatBusy]   = useState(false);
+
+  // Ürün formu
+  const [pCat, setPCat]   = useState("");
+  const [pName, setPName] = useState("");
+  const [pPrice, setPPrice] = useState("");
+  const [pWait, setPWait] = useState("");
+  const [pDesc, setPDesc] = useState("");
+  const [pImg, setPImg]   = useState("");
+  const [pBusy, setPBusy] = useState(false);
+
+  // Düzenleme
+  const [editItem, setEditItem] = useState(null);
+
+  const token = () => localStorage.getItem("sg_token") || "";
+
+  const apicall = async (action, data = {}) => {
+    const res = await fetch(`${API}/panel.php`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
+      body: JSON.stringify({ action, ...data, _token: token() }),
+    });
+    return res.json();
   };
 
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/panel.php?type=menu`, {
+        headers: { Authorization: `Bearer ${token()}` },
+      });
+      const r = await res.json();
+      if (r.menu) {
+        const catList = Object.keys(r.menu);
+        setCats(catList);
+        const flat = catList.flatMap(cat =>
+          (r.menu[cat] || []).map(i => ({ ...i, cat }))
+        );
+        setItems(flat);
+        if (!pCat && catList.length > 0) setPCat(catList[0]);
+      }
+    } catch(e) { setMsg("❌ Yüklenemedi: " + e.message); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const flash = (m) => { setMsg(m); setTimeout(() => setMsg(""), 3000); };
+
+  /* ── KATEGORİ EKLE ── */
+  const addCat = async () => {
+    const k = catName.trim();
+    if (!k) { flash("⚠️ Kategori adı girin."); return; }
+    if (cats.includes(k)) { flash("⚠️ Bu kategori zaten var."); return; }
+    setCatBusy(true);
+    const r = await apicall("cat_add", { kategori: k });
+    setCatBusy(false);
+    if (r.ok || r.msg === "zaten var") {
+      flash("✅ Kategori eklendi: " + k);
+      setCatName("");
+      await load();
+    } else {
+      flash("❌ " + (r.error || "Hata"));
+    }
+  };
+
+  /* ── ÜRÜN EKLE ── */
+  const addItem = async () => {
+    if (!pCat) { flash("⚠️ Kategori seçin."); return; }
+    if (!pName.trim()) { flash("⚠️ Ürün adı girin."); return; }
+    if (!pPrice || parseInt(pPrice) <= 0) { flash("⚠️ Geçerli fiyat girin."); return; }
+    setPBusy(true);
+    const r = await apicall("menu_add", {
+      kategori: pCat,
+      ad: pName.trim(),
+      fiyat: parseInt(pPrice),
+      sure: parseInt(pWait) || 5,
+      aciklama: pDesc.trim(),
+      gorsel: pImg.trim(),
+    });
+    setPBusy(false);
+    if (r.ok) {
+      flash("✅ Ürün eklendi: " + pName);
+      setPName(""); setPPrice(""); setPWait(""); setPDesc(""); setPImg("");
+      await load();
+    } else {
+      flash("❌ " + (r.error || "Hata"));
+    }
+  };
+
+  /* ── ÜRÜN SİL ── */
+  const delItem = async (id, name) => {
+    if (!window.confirm(`"${name}" silinsin mi?`)) return;
+    const r = await apicall("menu_del", { id });
+    if (r.ok) { flash("🗑 Silindi"); await load(); }
+    else flash("❌ " + (r.error || "Hata"));
+  };
+
+  /* ── ÜRÜN GÜNCELLE ── */
+  const updateItem = async () => {
+    if (!editItem) return;
+    const r = await apicall("menu_update", {
+      id: editItem.id,
+      ad: editItem.name,
+      fiyat: parseInt(editItem.price),
+      sure: parseInt(editItem.wait) || 5,
+      aciklama: editItem.desc || "",
+      gorsel: editItem.img || "",
+      aktif: editItem.aktif,
+    });
+    if (r.ok) { flash("✅ Güncellendi"); setEditItem(null); await load(); }
+    else flash("❌ " + (r.error || "Hata"));
+  };
+
+  /* ── SATIŞ DURDUR / AKTİF ET ── */
+  const toggleItem = async (item) => {
+    const r = await apicall("menu_toggle", { id: item.id, aktif: item.aktif ? 0 : 1 });
+    if (r.ok) { flash(item.aktif ? "⏸ Satış durduruldu" : "▶ Satışa açıldı"); await load(); }
+    else flash("❌ " + (r.error || "Hata"));
+  };
+
+  const inp = (ph, val, set, type = "text") => (
+    <input type={type} value={val} onChange={e => set(e.target.value)} placeholder={ph}
+      style={{ width:"100%", background:"var(--bg)", border:"1px solid var(--bord)", borderRadius:9, padding:"11px 13px", color:"var(--cream)", fontSize:14, outline:"none", marginBottom:9 }}
+    />
+  );
+
+  const subBtn = (id, label) => (
+    <button key={id} onClick={() => setTab(id)} style={{ flex:1, padding:"9px 4px", background:tab===id?"var(--surf)":"transparent", border:"none", borderRadius:10, cursor:"pointer", fontSize:12, color:tab===id?"var(--gsoft)":"var(--muted)", fontWeight:tab===id?600:400 }}>{label}</button>
+  );
+
+  if (loading) return <div style={{textAlign:"center",color:"var(--muted)",marginTop:40}}><Spin /></div>;
+
   return (
-    <div style={{ padding:"14px 15px", background:"var(--surf2)", border:"1px solid var(--gdim)", borderRadius:14, marginTop:14 }}>
-      <div style={{ fontSize:13, color:"var(--muted)", marginBottom:10, fontFamily:"var(--fh)" }}>Yeni Kategori Ekle</div>
-      <input
-        type="text" value={kat}
-        onChange={e => setKat(e.target.value)}
-        onKeyDown={e => e.key === "Enter" && add()}
-        placeholder="Örn: ☕ Kahveler, 🍰 Tatlılar"
-        style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"11px 13px", color:"var(--cream)", fontSize:14, outline:"none", marginBottom:10 }}
-      />
-      {msg && <div style={{ fontSize:13, color: msg.startsWith("✅") ? "#3aaa6a" : "#e06060", marginBottom:10 }}>{msg}</div>}
-      <button
-        onClick={add}
-        disabled={busy}
-        style={{ width:"100%", padding:"11px", background: busy ? "var(--surf)" : "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color: busy ? "var(--muted)" : "#0b0704", cursor: busy ? "not-allowed" : "pointer", fontFamily:"var(--fh)", fontSize:14, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}
-      >
-        {busy ? <><Spin /> Ekleniyor...</> : "+ Kategori Oluştur"}
-      </button>
+    <div>
+      {/* Mesaj */}
+      {msg && (
+        <div style={{ padding:"10px 14px", background: msg.startsWith("✅")||msg.startsWith("▶")||msg.startsWith("🗑") ? "rgba(58,138,92,.15)" : "rgba(192,64,64,.15)", border:`1px solid ${msg.startsWith("✅")||msg.startsWith("▶")||msg.startsWith("🗑") ? "rgba(58,138,92,.4)" : "rgba(192,64,64,.4)"}`, borderRadius:10, fontSize:13, color: msg.startsWith("✅")||msg.startsWith("▶")||msg.startsWith("🗑") ? "#3aaa6a" : "#e06060", marginBottom:14, animation:"fadeIn .2s" }}>
+          {msg}
+        </div>
+      )}
+
+      {/* Alt sekmeler */}
+      <div style={{ display:"flex", background:"var(--surf2)", borderRadius:12, padding:3, marginBottom:16 }}>
+        {subBtn("liste","📋 Ürünler")}
+        {subBtn("cat","🗂 Kategori")}
+        {subBtn("urun","➕ Ürün Ekle")}
+      </div>
+
+      {/* ── ÜRÜN LİSTESİ ── */}
+      {tab === "liste" && (
+        items.length === 0
+          ? <div style={{textAlign:"center",color:"var(--muted)",marginTop:40,fontStyle:"italic"}}>Henüz ürün yok. Önce kategori, sonra ürün ekleyin.</div>
+          : cats.map(cat => {
+              const catItems = items.filter(i => i.cat === cat);
+              if (!catItems.length) return (
+                <div key={cat} style={{marginBottom:14}}>
+                  <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--gsoft)",padding:"7px 12px",background:"var(--surf2)",borderRadius:8,marginBottom:4}}>{cat} <span style={{color:"var(--muted)",fontSize:11}}>(boş)</span></div>
+                </div>
+              );
+              return (
+                <div key={cat} style={{marginBottom:18}}>
+                  <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--gsoft)",padding:"7px 12px",background:"var(--surf2)",borderRadius:8,marginBottom:6}}>
+                    {cat} <span style={{color:"var(--muted)",fontSize:11}}>({catItems.length} ürün)</span>
+                  </div>
+                  {catItems.map(item => (
+                    <div key={item.id} style={{ padding:"10px 12px", marginBottom:6, background:"var(--surf2)", border:`1px solid ${item.aktif===0||item.aktif==="0"?"rgba(192,64,64,.3)":"var(--bord)"}`, borderRadius:11, opacity:item.aktif===0||item.aktif==="0"?0.6:1 }}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:14,color:"var(--cream)",fontWeight:500}}>{item.name}</div>
+                          <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>{item.price}₺ · ~{item.wait}dk{item.desc ? " · "+item.desc : ""}</div>
+                          {(item.aktif===0||item.aktif==="0") && <div style={{fontSize:11,color:"#e06060",marginTop:2}}>⏸ Satış durduruldu</div>}
+                        </div>
+                        <div style={{display:"flex",gap:5,marginLeft:8}}>
+                          <button onClick={()=>toggleItem(item)} title={item.aktif?"Durdur":"Aktif Et"} style={{width:28,height:28,borderRadius:7,background:item.aktif?"rgba(201,145,58,.15)":"rgba(58,138,92,.15)",border:`1px solid ${item.aktif?"rgba(201,145,58,.4)":"rgba(58,138,92,.4)"}`,color:item.aktif?"var(--gsoft)":"#3aaa6a",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>{item.aktif?"⏸":"▶"}</button>
+                          <button onClick={()=>setEditItem({...item})} title="Düzenle" style={{width:28,height:28,borderRadius:7,background:"rgba(58,106,154,.15)",border:"1px solid rgba(58,106,154,.4)",color:"#6aaae0",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>✎</button>
+                          <button onClick={()=>delItem(item.id, item.name)} title="Sil" style={{width:28,height:28,borderRadius:7,background:"rgba(192,64,64,.15)",border:"1px solid rgba(192,64,64,.3)",color:"#e06060",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })
+      )}
+
+      {/* ── KATEGORİ ── */}
+      {tab === "cat" && (
+        <div>
+          <div style={{marginBottom:16}}>
+            <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--gsoft)",marginBottom:10}}>Mevcut Kategoriler</div>
+            {cats.length === 0
+              ? <div style={{color:"var(--muted)",fontSize:13,fontStyle:"italic",marginBottom:14}}>Henüz kategori yok</div>
+              : cats.map(cat => (
+                <div key={cat} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",marginBottom:8,background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12}}>
+                  <span style={{fontFamily:"var(--fh)",fontSize:15,color:"var(--cream)"}}>{cat}</span>
+                  <span style={{fontSize:12,color:"var(--muted)"}}>{items.filter(i=>i.cat===cat).length} ürün</span>
+                </div>
+              ))
+            }
+          </div>
+          <div style={{padding:"16px",background:"var(--surf2)",border:"1px solid var(--gdim)",borderRadius:14}}>
+            <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--muted)",marginBottom:12}}>Yeni Kategori</div>
+            <input
+              type="text" value={catName} onChange={e=>setCatName(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&addCat()}
+              placeholder="Örn: ☕ Kahveler"
+              style={{width:"100%",background:"var(--bg)",border:"1px solid var(--bord)",borderRadius:9,padding:"13px 15px",color:"var(--cream)",fontSize:15,outline:"none",marginBottom:12}}
+            />
+            <button onClick={addCat} disabled={catBusy} style={{width:"100%",padding:"13px",background:catBusy?"var(--surf)":"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:catBusy?"var(--muted)":"#0b0704",cursor:catBusy?"not-allowed":"pointer",fontFamily:"var(--fh)",fontSize:15,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+              {catBusy ? <><Spin /> Ekleniyor...</> : "+ Kategori Oluştur"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── ÜRÜN EKLE ── */}
+      {tab === "urun" && (
+        <div style={{padding:"16px",background:"var(--surf2)",border:"1px solid var(--gdim)",borderRadius:14}}>
+          <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--muted)",marginBottom:12}}>Yeni Ürün</div>
+          {cats.length === 0
+            ? <div style={{color:"#e06060",fontSize:13,marginBottom:14}}>⚠️ Önce kategori ekleyin.</div>
+            : <>
+              <select value={pCat} onChange={e=>setPCat(e.target.value)} style={{width:"100%",background:"var(--bg)",border:"1px solid var(--bord)",borderRadius:9,padding:"11px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:9}}>
+                {cats.map(cat=><option key={cat} value={cat}>{cat}</option>)}
+              </select>
+              {inp("Ürün adı *", pName, setPName)}
+              {inp("Fiyat (₺) *", pPrice, setPPrice, "number")}
+              {inp("Hazırlanma süresi (dk)", pWait, setPWait, "number")}
+              {inp("Açıklama", pDesc, setPDesc)}
+              {inp("Görsel URL (opsiyonel)", pImg, setPImg)}
+              <button onClick={addItem} disabled={pBusy} style={{width:"100%",padding:"13px",background:pBusy?"var(--surf)":"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:pBusy?"var(--muted)":"#0b0704",cursor:pBusy?"not-allowed":"pointer",fontFamily:"var(--fh)",fontSize:15,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:4}}>
+                {pBusy ? <><Spin /> Kaydediliyor...</> : "+ Ürünü Kaydet"}
+              </button>
+            </>
+          }
+        </div>
+      )}
+
+      {/* ── DÜZENLE MODAL ── */}
+      {editItem && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.9)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:400,backdropFilter:"blur(4px)"}}>
+          <div style={{width:"100%",maxWidth:525,background:"var(--surf)",borderRadius:"22px 22px 0 0",padding:"20px 18px 36px",animation:"fadeUp .3s ease-out"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontFamily:"var(--fh)",fontSize:17,color:"var(--cream)"}}>✎ Ürünü Düzenle</div>
+              <button onClick={()=>setEditItem(null)} style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:22}}>✕</button>
+            </div>
+            {[["Ürün adı",editItem.name,v=>setEditItem({...editItem,name:v})],
+              ["Fiyat (₺)",editItem.price,v=>setEditItem({...editItem,price:v}),"number"],
+              ["Süre (dk)",editItem.wait,v=>setEditItem({...editItem,wait:v}),"number"],
+              ["Açıklama",editItem.desc||"",v=>setEditItem({...editItem,desc:v})],
+              ["Görsel URL",editItem.img||"",v=>setEditItem({...editItem,img:v})]
+            ].map(([ph,val,fn,tp="text"],i)=>(
+              <input key={i} type={tp} value={val||""} placeholder={ph} onChange={e=>fn(e.target.value)}
+                style={{width:"100%",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:9,padding:"11px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:9}} />
+            ))}
+            <div style={{display:"flex",gap:9}}>
+              <button onClick={()=>setEditItem(null)} style={{flex:1,padding:"12px",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:10,color:"var(--muted)",cursor:"pointer",fontSize:14}}>İptal</button>
+              <button onClick={updateItem} style={{flex:2,padding:"12px",background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:"#0b0704",cursor:"pointer",fontFamily:"var(--fh)",fontSize:15,fontWeight:600}}>Kaydet ✓</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -651,9 +876,6 @@ const StaffPanel = ({ staff, onLogout }) => {
   const [garsonCart, setGarsonCart]   = useState([]);
   const [garsonLoading, setGarsonLoading] = useState(false);
   const [yTab, setYTab]       = useState("ozet"); // yönetim alt sekme
-  const [menuSubTab, setMenuSubTab] = useState("kategori"); // menü alt sekme: kategori | urun | liste
-  const switchMenuTab = (t) => { setMenuSubTab(t); fetchAll(); }; // sekme değişince menüyü yenile
-  const [newCatName, setNewCatName] = useState(""); // yeni kategori adı
   const [newMasa, setNewMasa]   = useState("");
   const [newItem, setNewItem]   = useState({ cat: "", name: "", price: "", desc: "", wait: "" });
   const [newSpec, setNewSpec]   = useState({ name: "", price: "", desc: "" });
@@ -1013,116 +1235,9 @@ const StaffPanel = ({ staff, onLogout }) => {
             </>}
 
             {/* ── MENÜ ── */}
-            {yTab === "menu" && <>
-              {/* Menü alt sekmeleri */}
-              <div style={{display:"flex",gap:0,marginBottom:16,background:"var(--surf2)",borderRadius:12,padding:3}}>
-                {[["kategori","🗂 Kategori"],["urun","➕ Ürün Ekle"],["liste","📋 Ürün Listesi"]].map(([id,label])=>(
-                  <button key={id} onClick={()=>switchMenuTab(id)} style={{flex:1,padding:"8px 4px",background:menuSubTab===id?"var(--surf)":"transparent",border:"none",borderRadius:10,cursor:"pointer",fontSize:12,color:menuSubTab===id?"var(--gsoft)":"var(--muted)",fontWeight:menuSubTab===id?600:400,transition:"all .2s"}}>{label}</button>
-                ))}
-              </div>
-
-              {/* ── KATEGORİ ── */}
-              {menuSubTab === "kategori" && <>
-                <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--gsoft)",marginBottom:10}}>Mevcut Kategoriler</div>
-                {Object.keys(menu).length===0
-                  ? <div style={{color:"var(--muted)",fontSize:13,fontStyle:"italic",marginBottom:14}}>Henüz kategori yok</div>
-                  : Object.keys(menu).map(cat=>(
-                    <div key={cat} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",marginBottom:8,background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12}}>
-                      <span style={{fontFamily:"var(--fh)",fontSize:15,color:"var(--cream)"}}>{cat}</span>
-                      <span style={{fontSize:12,color:"var(--muted)"}}>{menu[cat].length} ürün</span>
-                    </div>
-                  ))
-                }
-                <CatAdder menu={menu} fetchAll={fetchAll} />
-              </>}
-
-              {/* ── ÜRÜN EKLE ── */}
-              {menuSubTab === "urun" && <>
-                <div style={{...card({border:"1px solid var(--gdim)",marginBottom:16})}}>
-                  <div style={{fontSize:12,color:"var(--muted)",marginBottom:9,fontFamily:"var(--fh)"}}>KATEGORİ</div>
-                  <select value={newItem.cat} onChange={e=>setNewItem({...newItem,cat:e.target.value})}
-                    style={{width:"100%",background:"var(--surf)",border:"1px solid var(--bord)",borderRadius:9,padding:"11px 13px",color:newItem.cat?"var(--cream)":"var(--muted)",fontSize:14,outline:"none",marginBottom:14}}>
-                    <option value="">-- Kategori Seç --</option>
-                    {Object.keys(menu).map(cat=><option key={cat} value={cat}>{cat}</option>)}
-                  </select>
-                  <div style={{fontSize:12,color:"var(--muted)",marginBottom:9,fontFamily:"var(--fh)"}}>ÜRÜN BİLGİLERİ</div>
-                  {[["Ürün adı *",newItem.name,v=>setNewItem({...newItem,name:v}),"text"],
-                    ["Fiyat (₺) *",newItem.price,v=>setNewItem({...newItem,price:v}),"number"],
-                    ["Bekleme süresi (dk)",newItem.wait,v=>setNewItem({...newItem,wait:v}),"number"],
-                    ["Açıklama",newItem.desc,v=>setNewItem({...newItem,desc:v}),"text"],
-                    ["Görsel URL (opsiyonel)",newItem.gorsel||"",v=>setNewItem({...newItem,gorsel:v}),"text"]
-                  ].map(([ph,val,fn,tp],i)=>(
-                    <input key={i} type={tp} value={val||""} placeholder={ph} onChange={e=>fn(e.target.value)}
-                      style={{width:"100%",background:"var(--surf)",border:"1px solid var(--bord)",borderRadius:9,padding:"11px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:8}} />
-                  ))}
-                  <button onClick={async()=>{
-                    if(!newItem.cat||!newItem.name||!newItem.price) {
-                      alert("Kategori, ürün adı ve fiyat zorunlu!");
-                      return;
-                    }
-                    const r = await post("panel.php",{
-                      action:"menu_add",
-                      kategori:newItem.cat,
-                      ad:newItem.name.trim(),
-                      fiyat:parseInt(newItem.price),
-                      sure:parseInt(newItem.wait)||5,
-                      aciklama:(newItem.desc||"").trim(),
-                      gorsel:(newItem.gorsel||"").trim()
-                    });
-                    if(r.ok){
-                      setNewItem({cat:newItem.cat,name:"",price:"",desc:"",wait:"",gorsel:""});
-                      fetchAll();
-                    } else {
-                      alert("Hata: " + (r.error||"bilinmeyen"));
-                    }
-                  }} style={{width:"100%",padding:"12px",background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:"#0b0704",cursor:"pointer",fontFamily:"var(--fh)",fontSize:15,fontWeight:600,marginTop:4}}>+ Ürünü Kaydet</button>
-                </div>
-
-                {/* Günlük özel menü */}
-                <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--gsoft)",marginBottom:8}}>⭐ Günlük Özel</div>
-                {specials.map((s,i)=>(
-                  <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 13px",marginBottom:7,background:"rgba(201,145,58,.1)",border:"1px solid rgba(201,145,58,.3)",borderRadius:12}}>
-                    <div><div style={{fontSize:14,color:"var(--cream)"}}>{s.name} · {s.price}₺</div></div>
-                  </div>
-                ))}
-                <div style={{...card({border:"1px solid rgba(201,145,58,.3)"})}}>
-                  <div style={{fontSize:12,color:"var(--muted)",marginBottom:8,fontFamily:"var(--fh)"}}>Bugüne Özel Ürün Ekle</div>
-                  {[["Ürün adı",newSpec.name,v=>setNewSpec({...newSpec,name:v}),"text"],
-                    ["Fiyat (₺)",newSpec.price,v=>setNewSpec({...newSpec,price:v}),"number"],
-                    ["Açıklama",newSpec.desc,v=>setNewSpec({...newSpec,desc:v}),"text"]
-                  ].map(([ph,val,fn,tp],i)=>(
-                    <input key={i} type={tp} value={val} placeholder={ph} onChange={e=>fn(e.target.value)}
-                      style={{width:"100%",background:"var(--surf)",border:"1px solid var(--bord)",borderRadius:9,padding:"10px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:7}} />
-                  ))}
-                  <button onClick={async()=>{
-                    if(!newSpec.name||!newSpec.price) return;
-                    const r = await post("panel.php",{action:"special_add",ad:newSpec.name,fiyat:parseInt(newSpec.price),aciklama:newSpec.desc||""});
-                    if(r.ok){setNewSpec({name:"",price:"",desc:""});fetchAll();}
-                  }} style={{width:"100%",padding:"10px",background:"rgba(201,145,58,.2)",border:"1px solid rgba(201,145,58,.4)",borderRadius:10,color:"var(--gsoft)",cursor:"pointer",fontFamily:"var(--fh)",fontSize:14,fontWeight:600}}>⭐ Özel Menüye Ekle</button>
-                </div>
-              </>}
-
-              {/* ── ÜRÜN LİSTESİ ── */}
-              {menuSubTab === "liste" && <>
-                {Object.keys(menu).length===0
-                  ? <div style={{textAlign:"center",color:"var(--muted)",marginTop:40,fontStyle:"italic"}}>Menü boş. Önce kategori ve ürün ekleyin.</div>
-                  : Object.entries(menu).map(([cat,items])=>(
-                    <div key={cat} style={{marginBottom:18}}>
-                      <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--gsoft)",marginBottom:8,padding:"6px 10px",background:"var(--surf2)",borderRadius:8}}>{cat} <span style={{color:"var(--muted)",fontSize:11}}>({items.length} ürün)</span></div>
-                      {items.filter(item=>item.name!=="__placeholder__").map(item=>(
-                        <div key={item.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 12px",marginBottom:5,background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:10}}>
-                          <div>
-                            <div style={{fontSize:14,color:"var(--cream)"}}>{item.name}</div>
-                            <div style={{fontSize:12,color:"var(--muted)"}}>{item.price}₺ · ~{item.wait}dk</div>
-                          </div>
-                          <button onClick={()=>post("panel.php",{action:"menu_del",id:item.id}).then(fetchAll)} style={{background:"none",border:"none",color:"#e06060",cursor:"pointer",fontSize:16,padding:4}}>✕</button>
-                        </div>
-                      ))}
-                    </div>
-                  ))
-                }
-              </>}
-            </>}
+            {yTab === "menu" && (
+              <MenuManager venueId={vid} />
+            )}
           </>
         )}
       </div>
