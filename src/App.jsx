@@ -505,6 +505,50 @@ const CustomerChat = ({ session, venueAd }) => {
   );
 };
 
+
+/* ══════════════════════════════════════════════════════════
+   CHANGE PASSWORD SCREEN (ilk giriş)
+══════════════════════════════════════════════════════════ */
+const ChangePassword = ({ staff, onDone }) => {
+  const [pass1, setPass1] = useState("");
+  const [pass2, setPass2] = useState("");
+  const [err, setErr]     = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const save = async () => {
+    if (pass1.length < 6) return setErr("Şifre en az 6 karakter olmalı.");
+    if (pass1 !== pass2)  return setErr("Şifreler eşleşmiyor.");
+    setLoading(true); setErr("");
+    const r = await post("panel.php", { action: "change_pass", yeni_sifre: pass1 });
+    if (r.error) { setErr(r.error); setLoading(false); return; }
+    // Update stored staff
+    const updated = { ...staff, gecici: false };
+    localStorage.setItem("sg_staff", JSON.stringify(updated));
+    onDone(updated);
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 28 }}>
+      <div style={{ position: "fixed", inset: 0, background: "radial-gradient(ellipse 70% 50% at 50% 30%, rgba(201,145,58,.06) 0%, transparent 70%)", pointerEvents: "none" }} />
+      <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg,var(--gold) 0%,#6b3d10 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, marginBottom: 18, boxShadow: "0 0 32px rgba(201,145,58,.3)", position: "relative", zIndex: 1 }}>🔑</div>
+      <div style={{ fontFamily: "var(--fh)", fontSize: 22, color: "var(--cream)", marginBottom: 6, position: "relative", zIndex: 1 }}>Şifrenizi Belirleyin</div>
+      <div style={{ fontSize: 13, color: "var(--muted)", fontStyle: "italic", marginBottom: 28, textAlign: "center", position: "relative", zIndex: 1 }}>
+        Hoş geldiniz, <strong style={{ color: "var(--gsoft)" }}>{staff.ad}</strong>!<br />
+        Güvenliğiniz için lütfen yeni bir şifre belirleyin.
+      </div>
+      <div style={{ width: "100%", maxWidth: 340, position: "relative", zIndex: 1 }}>
+        <Inp label="YENİ ŞİFRE" value={pass1} onChange={setPass1} type="password" placeholder="En az 6 karakter" />
+        <Inp label="ŞİFRE TEKRAR" value={pass2} onChange={setPass2} type="password" placeholder="Aynı şifreyi tekrar girin" />
+        {err && <div style={{ padding: "10px 14px", background: "rgba(192,64,64,.15)", border: "1px solid rgba(192,64,64,.35)", borderRadius: 10, fontSize: 13, color: "#e06060", marginBottom: 14 }}>⚠️ {err}</div>}
+        <button onClick={save} disabled={loading} style={{ width: "100%", padding: "14px", background: loading ? "var(--surf2)" : "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 12, color: loading ? "var(--muted)" : "#0b0704", cursor: loading ? "not-allowed" : "pointer", fontFamily: "var(--fh)", fontSize: 17, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          {loading ? <Spin /> : "Şifremi Kaydet →"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 /* ══════════════════════════════════════════════════════════
    STAFF PANEL
 ══════════════════════════════════════════════════════════ */
@@ -646,7 +690,7 @@ const StaffPanel = ({ staff, onLogout }) => {
           <button onClick={async () => {
             if (!newVenue.venue_ad || !newVenue.ad || !newVenue.tel || !newVenue.gecici_sifre) return;
             const r = await post("panel.php", { action: "venue_add", ...newVenue });
-            if (r.ok) { setVMsg(`✅ ${r.venue_ad} oluşturuldu! Giriş linki: ${window.location.origin}`); setNewVenue({ venue_ad: "", ad: "", tel: "", email: "", gecici_sifre: "" }); fetchAll(); }
+            if (r.ok) { setVMsg(`✅ ${r.venue_ad} oluşturuldu! İşletme linki: ${window.location.origin} — Tel: ${newVenue.tel} / Şifre: ${newVenue.gecici_sifre}`);  setNewVenue({ venue_ad: "", ad: "", tel: "", email: "", gecici_sifre: "" }); fetchAll(); }
             else setVMsg("❌ Hata: " + (r.error || "bilinmeyen"));
           }} style={{ width: "100%", padding: "11px", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 10, color: "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 }}>Mekan Oluştur</button>
         </div>
@@ -1036,5 +1080,6 @@ export default function App() {
 
   // Personel akışı
   if (!staff) return <StaffLogin onLogin={setStaff} />;
+  if (staff.gecici) return <ChangePassword staff={staff} onDone={updated => setStaff(updated)} />;
   return <StaffPanel staff={staff} onLogout={logout} />;
 }
