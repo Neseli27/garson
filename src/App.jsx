@@ -1008,7 +1008,7 @@ const StaffPanel = ({ staff, onLogout }) => {
               ))}
             </>}
           </>
-        )}        )}
+        )}
       </div>
 
       {/* Garson sipariş popup */}
