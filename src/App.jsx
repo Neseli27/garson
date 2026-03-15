@@ -338,7 +338,7 @@ const CustomerChat = ({ session, venueAd }) => {
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
   useEffect(() => {
-    get(`panel.php?type=menu`).then(r => { if (r.menu) setMenu(r.menu); if (r.specials) setSpecials(r.specials); });
+    get(`panel.php?type=menu&session_id=${session.id}`).then(r => { if (r.menu) setMenu(r.menu); if (r.specials) setSpecials(r.specials); });
   }, []);
 
   useEffect(() => {
