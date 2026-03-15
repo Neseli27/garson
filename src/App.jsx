@@ -549,6 +549,31 @@ const ChangePassword = ({ staff, onDone }) => {
   );
 };
 
+
+/* ══════════════════════════════════════════════════════════
+   INLINE CHANGE PASSWORD (yönetim > özet)
+══════════════════════════════════════════════════════════ */
+const ChangePassInline = () => {
+  const [p1, setP1] = useState("");
+  const [p2, setP2] = useState("");
+  const [msg, setMsg] = useState("");
+  const save = async () => {
+    if (p1.length < 6) return setMsg("En az 6 karakter.");
+    if (p1 !== p2)     return setMsg("Şifreler eşleşmiyor.");
+    const r = await post("panel.php", { action: "change_pass", yeni_sifre: p1 });
+    if (r.ok) { setMsg("✅ Şifre güncellendi."); setP1(""); setP2(""); }
+    else setMsg("❌ Hata oluştu.");
+  };
+  return (
+    <div>
+      <input type="password" value={p1} onChange={e=>setP1(e.target.value)} placeholder="Yeni şifre" style={{width:"100%",background:"var(--bg)",border:"1px solid var(--bord)",borderRadius:9,padding:"10px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:7}}/>
+      <input type="password" value={p2} onChange={e=>setP2(e.target.value)} placeholder="Tekrar" style={{width:"100%",background:"var(--bg)",border:"1px solid var(--bord)",borderRadius:9,padding:"10px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:7}}/>
+      {msg && <div style={{fontSize:13,color:msg.startsWith("✅")?"#3aaa6a":"#e06060",marginBottom:7}}>{msg}</div>}
+      <button onClick={save} style={{width:"100%",padding:"9px",background:"var(--surf)",border:"1px solid var(--bord)",borderRadius:9,color:"var(--cream)",cursor:"pointer",fontFamily:"var(--fb,inherit)",fontSize:13}}>Şifreyi Güncelle</button>
+    </div>
+  );
+};
+
 /* ══════════════════════════════════════════════════════════
    STAFF PANEL
 ══════════════════════════════════════════════════════════ */
@@ -569,6 +594,7 @@ const StaffPanel = ({ staff, onLogout }) => {
   const [garsonOrder, setGarsonOrder] = useState(null);
   const [garsonCart, setGarsonCart]   = useState([]);
   const [garsonLoading, setGarsonLoading] = useState(false);
+  const [yTab, setYTab] = useState("ozet"); // yönetim alt sekme
   const [newMasa, setNewMasa]   = useState("");
   const [newItem, setNewItem]   = useState({ cat: "", name: "", price: "", desc: "", wait: "" });
   const [newSpec, setNewSpec]   = useState({ name: "", price: "", desc: "" });
@@ -841,100 +867,152 @@ const StaffPanel = ({ staff, onLogout }) => {
         {/* ── YÖNETİM (sadece işletmeci) ── */}
         {!loading && tab === "yonetim" && isOwner && (
           <>
-            {/* Günlük özet */}
-            <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 10 }}>📊 Bugünün Özeti</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
-              {[{ label: "Toplam Ciro", value: `${ciro}₺`, color: "var(--gsoft)" }, { label: "Sipariş", value: todayOrds.length, color: "#6aaae0" }, { label: "Aktif Masa", value: active.length, color: "#3aaa6a" }, { label: "Bekleyen", value: orders.filter(o => o.status !== "hazır").length, color: "#e06060" }].map((s, i) => (
-                <div key={i} style={{ padding: "12px 14px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 12 }}>
-                  <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>{s.label}</div>
-                  <div style={{ fontFamily: "var(--fh)", fontSize: 22, color: s.color }}>{s.value}</div>
-                </div>
+            {/* Alt sekmeler */}
+            <div style={{ display:"flex", gap:0, marginBottom:16, background:"var(--surf2)", borderRadius:12, padding:3 }}>
+              {[["ozet","📊 Özet"],["masalar","🪑 Masalar"],["menu","📋 Menü"]].map(([id,label]) => (
+                <button key={id} onClick={()=>setYTab(id)} style={{ flex:1, padding:"9px 6px", background:yTab===id?"var(--surf)":"transparent", border:"none", borderRadius:10, cursor:"pointer", fontSize:12.5, color:yTab===id?"var(--gsoft)":"var(--muted)", fontWeight:yTab===id?600:400, transition:"all .2s" }}>{label}</button>
               ))}
             </div>
-            {topItems.length > 0 && (
-              <div style={{ padding: "12px 14px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 12, marginBottom: 18 }}>
-                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 10 }}>🏆 EN ÇOK SATAN</div>
-                {topItems.map(([ad, adet], i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: "var(--cream)", padding: "4px 0", borderBottom: i < topItems.length - 1 ? "1px solid var(--bord)" : "none" }}>
-                    <span>{i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"} {ad}</span>
-                    <span style={{ color: "var(--gsoft)" }}>{adet} adet</span>
+
+            {/* ── ÖZET ── */}
+            {yTab === "ozet" && <>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:18 }}>
+                {[{label:"Toplam Ciro",value:`${ciro}₺`,color:"var(--gsoft)"},{label:"Sipariş",value:todayOrds.length,color:"#6aaae0"},{label:"Aktif Masa",value:active.length,color:"#3aaa6a"},{label:"Bekleyen",value:orders.filter(o=>o.status!=="hazır").length,color:"#e06060"}].map((s,i)=>(
+                  <div key={i} style={{padding:"12px 14px",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12}}>
+                    <div style={{fontSize:11,color:"var(--muted)",marginBottom:4}}>{s.label}</div>
+                    <div style={{fontFamily:"var(--fh)",fontSize:22,color:s.color}}>{s.value}</div>
                   </div>
                 ))}
               </div>
-            )}
-
-            {/* Masalar & QR */}
-            <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 10 }}>🪑 Masalar & QR Kodlar</div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <input type="number" value={newMasa} onChange={e => setNewMasa(e.target.value)} placeholder="Masa no" style={{ flex: 1, background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 14, outline: "none" }} />
-              <button onClick={async () => {
-                if (!newMasa) return;
-                const r = await post("panel.php", { action: "table_add", masa_no: parseInt(newMasa) });
-                if (r.ok) { setNewMasa(""); fetchAll(); }
-              }} style={{ padding: "10px 18px", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 9, color: "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}>+ Masa Ekle</button>
-            </div>
-            {tables.map(t => {
-              const url = `${import.meta.env.VITE_APP_URL || window.location.origin}?qr=${t.qr_token}`;
-              return (
-                <div key={t.id} style={{ ...card({ display: "flex", alignItems: "center", justifyContent: "space-between" }) }}>
-                  <div>
-                    <div style={{ fontFamily: "var(--fh)", fontSize: 16, color: "var(--cream)" }}>Masa {t.masa_no}</div>
-                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{t.qr_token}</div>
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {AB("🔲 QR", () => setQrModal({ masa_no: t.masa_no, url }), "201,145,58")}
-                    {AB("🗑", () => post("panel.php", { action: "table_del", id: t.id }).then(fetchAll), "192,64,64")}
-                  </div>
-                </div>
-              );
-            })}
-
-            <div style={{ height: 1, background: "var(--bord)", margin: "16px 0" }} />
-
-            {/* Günlük özel menü */}
-            <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 10 }}>⭐ Günlük Özel Menü</div>
-            {specials.map((s, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 13px", marginBottom: 7, background: "rgba(201,145,58,.1)", border: "1px solid rgba(201,145,58,.3)", borderRadius: 12 }}>
-                <div><div style={{ fontSize: 14, color: "var(--cream)" }}>{s.name} · {s.price}₺</div><div style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>{s.desc}</div></div>
-              </div>
-            ))}
-            <div style={{ ...card({ border: "1px solid var(--gdim)", marginBottom: 18 }) }}>
-              {[["Ürün adı", newSpec.name, v => setNewSpec({ ...newSpec, name: v })], ["Fiyat (₺)", newSpec.price, v => setNewSpec({ ...newSpec, price: v }), "number"], ["Açıklama", newSpec.desc, v => setNewSpec({ ...newSpec, desc: v })]].map(([ph, val, fn, tp = "text"], i) => (
-                <input key={i} type={tp} value={val} placeholder={ph} onChange={e => fn(e.target.value)} style={{ width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 7 }} />
-              ))}
-              <button onClick={async () => { if (!newSpec.name || !newSpec.price) return; await post("panel.php", { action: "special_add", ...newSpec, fiyat: parseInt(newSpec.price) }); setNewSpec({ name: "", price: "", desc: "" }); fetchAll(); }} style={{ width: "100%", padding: "10px", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 10, color: "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 }}>⭐ Ekle</button>
-            </div>
-
-            {/* Menü ürünü ekle */}
-            <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 10 }}>📋 Menü Yönetimi</div>
-            <div style={{ ...card({ border: "1px solid var(--gdim)" }) }}>
-              <select value={newItem.cat} onChange={e => setNewItem({ ...newItem, cat: e.target.value })} style={{ width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 7 }}>
-                {Object.keys(menu).concat(["Yeni Kategori"]).map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              {newItem.cat === "Yeni Kategori" && <input type="text" placeholder="Kategori adı" onChange={e => setNewItem({ ...newItem, cat: e.target.value })} style={{ width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 7 }} />}
-              {[["Ürün adı", newItem.name, v => setNewItem({ ...newItem, name: v })], ["Fiyat (₺)", newItem.price, v => setNewItem({ ...newItem, price: v }), "number"], ["Süre (dk)", newItem.wait, v => setNewItem({ ...newItem, wait: v }), "number"], ["Açıklama", newItem.desc, v => setNewItem({ ...newItem, desc: v })], ["Görsel URL (opsiyonel)", newItem.gorsel || "", v => setNewItem({ ...newItem, gorsel: v })]].map(([ph, val, fn, tp = "text"], i) => (
-                <input key={i} type={tp} value={val || ""} placeholder={ph} onChange={e => fn(e.target.value)} style={{ width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 7 }} />
-              ))}
-              <button onClick={async () => { if (!newItem.name || !newItem.price) return; await post("panel.php", { action: "menu_add", kategori: newItem.cat, ad: newItem.name, fiyat: parseInt(newItem.price), sure: parseInt(newItem.wait) || 5, aciklama: newItem.desc, gorsel: newItem.gorsel || "" }); setNewItem({ ...newItem, name: "", price: "", desc: "", wait: "", gorsel: "" }); fetchAll(); }} style={{ width: "100%", padding: "10px", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 10, color: "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 }}>+ Menüye Ekle</button>
-            </div>
-
-            {/* Mevcut menü */}
-            {Object.entries(menu).map(([cat, items]) => (
-              <div key={cat} style={{ marginBottom: 12, marginTop: 12 }}>
-                <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--muted)", marginBottom: 7 }}>{cat}</div>
-                {items.map(item => (
-                  <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", marginBottom: 5, background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 10 }}>
-                    <div>
-                      <div style={{ fontSize: 14, color: "var(--cream)" }}>{item.name}</div>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>{item.price}₺ · ~{item.wait}dk</div>
+              {topItems.length > 0 && (
+                <div style={{padding:"12px 14px",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12,marginBottom:14}}>
+                  <div style={{fontSize:11,color:"var(--muted)",marginBottom:10}}>🏆 EN ÇOK SATAN</div>
+                  {topItems.map(([ad,adet],i)=>(
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:14,color:"var(--cream)",padding:"4px 0",borderBottom:i<topItems.length-1?"1px solid var(--bord)":"none"}}>
+                      <span>{i===0?"🥇":i===1?"🥈":"🥉"} {ad}</span>
+                      <span style={{color:"var(--gsoft)"}}>{adet} adet</span>
                     </div>
-                    <button onClick={() => post("panel.php", { action: "menu_del", id: item.id }).then(fetchAll)} style={{ background: "none", border: "none", color: "#e06060", cursor: "pointer", fontSize: 16, padding: 4 }}>✕</button>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+              {/* Şifre değiştir */}
+              <div style={{...card({border:"1px solid var(--gdim)"})}}>
+                <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--muted)",marginBottom:10}}>🔑 Şifre Değiştir</div>
+                {(()=>{
+                  const [p1,setP1] = [window._cp1||"", v=>{window._cp1=v;}];
+                  return null; // handled separately below
+                })()}
+                <ChangePassInline />
               </div>
-            ))}
+            </>}
+
+            {/* ── MASALAR ── */}
+            {yTab === "masalar" && <>
+              {/* Toplu masa ekleme */}
+              <div style={{...card({border:"1px solid var(--gdim)",marginBottom:14})}}>
+                <div style={{fontSize:13,color:"var(--muted)",marginBottom:10,fontFamily:"var(--fh)"}}>Masa ekle — tek numara (örn: 5) veya aralık (örn: 1-50)</div>
+                <div style={{display:"flex",gap:8}}>
+                  <input type="text" value={newMasa} onChange={e=>setNewMasa(e.target.value)} placeholder="5 veya 1-50"
+                    style={{flex:1,background:"var(--surf)",border:"1px solid var(--bord)",borderRadius:9,padding:"10px 13px",color:"var(--cream)",fontSize:14,outline:"none"}} />
+                  <button onClick={async()=>{
+                    if(!newMasa.trim()) return;
+                    const val = newMasa.trim();
+                    let nums = [];
+                    if(val.includes("-")) {
+                      const [a,b] = val.split("-").map(Number);
+                      if(a>0&&b>=a&&b-a<300) for(let i=a;i<=b;i++) nums.push(i);
+                    } else {
+                      const n = parseInt(val);
+                      if(n>0) nums.push(n);
+                    }
+                    for(const n of nums) await post("panel.php",{action:"table_add",masa_no:n});
+                    setNewMasa(""); fetchAll();
+                  }} style={{padding:"10px 18px",background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:9,color:"#0b0704",cursor:"pointer",fontFamily:"var(--fh)",fontSize:14,fontWeight:600,whiteSpace:"nowrap"}}>+ Ekle</button>
+                </div>
+              </div>
+
+              {/* Masa grid */}
+              {tables.length === 0
+                ? <div style={{textAlign:"center",color:"var(--muted)",marginTop:30,fontStyle:"italic"}}>Henüz masa eklenmedi</div>
+                : <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+                    {tables.sort((a,b)=>a.masa_no-b.masa_no).map(t=>{
+                      const url = `${import.meta.env.VITE_APP_URL||window.location.origin}?qr=${t.qr_token}`;
+                      return (
+                        <div key={t.id} style={{background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12,padding:"10px 8px",textAlign:"center"}}>
+                          <div style={{fontFamily:"var(--fh)",fontSize:18,color:"var(--cream)",marginBottom:6}}>{t.masa_no}</div>
+                          <div style={{display:"flex",gap:5,justifyContent:"center"}}>
+                            <button onClick={()=>setQrModal({masa_no:t.masa_no,url})} style={{flex:1,background:"rgba(201,145,58,.15)",border:"1px solid rgba(201,145,58,.35)",borderRadius:7,padding:"4px 0",color:"var(--gold)",cursor:"pointer",fontSize:11}}>QR</button>
+                            <button onClick={()=>post("panel.php",{action:"table_del",id:t.id}).then(fetchAll)} style={{width:26,background:"rgba(192,64,64,.15)",border:"1px solid rgba(192,64,64,.3)",borderRadius:7,color:"#e06060",cursor:"pointer",fontSize:13}}>✕</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+              }
+            </>}
+
+            {/* ── MENÜ ── */}
+            {yTab === "menu" && <>
+              {/* Günlük özel */}
+              <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--gsoft)",marginBottom:8}}>⭐ Günlük Özel Menü</div>
+              {specials.map((s,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 13px",marginBottom:7,background:"rgba(201,145,58,.1)",border:"1px solid rgba(201,145,58,.3)",borderRadius:12}}>
+                  <div><div style={{fontSize:14,color:"var(--cream)"}}>{s.name} · {s.price}₺</div><div style={{fontSize:12,color:"var(--muted)",fontStyle:"italic"}}>{s.desc}</div></div>
+                  <button onClick={()=>post("panel.php",{action:"special_add",ad:"__DEL__",fiyat:0}).then(fetchAll)} style={{background:"none",border:"none",color:"#e06060",cursor:"pointer",fontSize:16}}>✕</button>
+                </div>
+              ))}
+              <div style={{...card({border:"1px solid var(--gdim)",marginBottom:18})}}>
+                {[["Ürün adı",newSpec.name,v=>setNewSpec({...newSpec,name:v})],["Fiyat (₺)",newSpec.price,v=>setNewSpec({...newSpec,price:v}),"number"],["Açıklama",newSpec.desc,v=>setNewSpec({...newSpec,desc:v})]].map(([ph,val,fn,tp="text"],i)=>(
+                  <input key={i} type={tp} value={val} placeholder={ph} onChange={e=>fn(e.target.value)} style={{width:"100%",background:"var(--surf)",border:"1px solid var(--bord)",borderRadius:9,padding:"10px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:7}} />
+                ))}
+                <button onClick={async()=>{
+                  if(!newSpec.name||!newSpec.price) return;
+                  const r = await post("panel.php",{action:"special_add",ad:newSpec.name,fiyat:parseInt(newSpec.price),aciklama:newSpec.desc||""});
+                  if(r.ok){setNewSpec({name:"",price:"",desc:""});fetchAll();}
+                }} style={{width:"100%",padding:"10px",background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:"#0b0704",cursor:"pointer",fontFamily:"var(--fh)",fontSize:14,fontWeight:600}}>⭐ Ekle</button>
+              </div>
+
+              {/* Menü ürünü ekle */}
+              <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--gsoft)",marginBottom:8}}>📋 Ürün Ekle</div>
+              <div style={{...card({border:"1px solid var(--gdim)",marginBottom:18})}}>
+                <select value={newItem.cat} onChange={e=>setNewItem({...newItem,cat:e.target.value})} style={{width:"100%",background:"var(--surf)",border:"1px solid var(--bord)",borderRadius:9,padding:"10px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:7}}>
+                  <option value="">-- Kategori Seç --</option>
+                  {Object.keys(menu).map(cat=><option key={cat} value={cat}>{cat}</option>)}
+                  <option value="__yeni__">+ Yeni Kategori</option>
+                </select>
+                {newItem.cat === "__yeni__" && (
+                  <input type="text" placeholder="Yeni kategori adı" value={newItem.newCat||""} onChange={e=>setNewItem({...newItem,newCat:e.target.value})} style={{width:"100%",background:"var(--surf)",border:"1px solid var(--bord)",borderRadius:9,padding:"10px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:7}} />
+                )}
+                {[["Ürün adı *",newItem.name,v=>setNewItem({...newItem,name:v})],["Fiyat (₺) *",newItem.price,v=>setNewItem({...newItem,price:v}),"number"],["Bekleme süresi (dk)",newItem.wait,v=>setNewItem({...newItem,wait:v}),"number"],["Açıklama",newItem.desc,v=>setNewItem({...newItem,desc:v})],["Görsel URL",newItem.gorsel||"",v=>setNewItem({...newItem,gorsel:v})]].map(([ph,val,fn,tp="text"],i)=>(
+                  <input key={i} type={tp} value={val||""} placeholder={ph} onChange={e=>fn(e.target.value)} style={{width:"100%",background:"var(--surf)",border:"1px solid var(--bord)",borderRadius:9,padding:"10px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:7}} />
+                ))}
+                <button onClick={async()=>{
+                  const kat = newItem.cat==="__yeni__" ? (newItem.newCat||"").trim() : newItem.cat;
+                  if(!kat||!newItem.name||!newItem.price) return;
+                  const r = await post("panel.php",{action:"menu_add",kategori:kat,ad:newItem.name.trim(),fiyat:parseInt(newItem.price),sure:parseInt(newItem.wait)||5,aciklama:(newItem.desc||"").trim(),gorsel:(newItem.gorsel||"").trim()});
+                  if(r.ok||!r.error){setNewItem({cat:kat,name:"",price:"",desc:"",wait:"",gorsel:"",newCat:""});fetchAll();}
+                }} style={{width:"100%",padding:"11px",background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:"#0b0704",cursor:"pointer",fontFamily:"var(--fh)",fontSize:14,fontWeight:600}}>+ Menüye Ekle</button>
+              </div>
+
+              {/* Mevcut menü */}
+              <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--gsoft)",marginBottom:8}}>Mevcut Ürünler</div>
+              {Object.entries(menu).map(([cat,items])=>(
+                <div key={cat} style={{marginBottom:14}}>
+                  <div style={{fontFamily:"var(--fh)",fontSize:12,color:"var(--muted)",marginBottom:6,letterSpacing:.8}}>{cat}</div>
+                  {items.map(item=>(
+                    <div key={item.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",marginBottom:5,background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:10}}>
+                      <div>
+                        <div style={{fontSize:14,color:"var(--cream)"}}>{item.name}</div>
+                        <div style={{fontSize:12,color:"var(--muted)"}}>{item.price}₺ · ~{item.wait}dk</div>
+                      </div>
+                      <button onClick={()=>post("panel.php",{action:"menu_del",id:item.id}).then(fetchAll)} style={{background:"none",border:"none",color:"#e06060",cursor:"pointer",fontSize:16,padding:4}}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </>}
           </>
-        )}
+        )}        )}
       </div>
 
       {/* Garson sipariş popup */}
