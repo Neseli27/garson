@@ -531,7 +531,7 @@ const StaffPanel = ({ staff, onLogout }) => {
 
   // Süper admin state
   const [venues, setVenues]     = useState([]);
-  const [newVenue, setNewVenue] = useState({ ad: "", isletmeci_ad: "", isletmeci_tel: "", sifre: "" });
+  const [newVenue, setNewVenue] = useState({ venue_ad: "", ad: "", tel: "", email: "", gecici_sifre: "" });
   const [vMsg, setVMsg]         = useState("");
 
   const [now, setNow]           = useState(Date.now());
@@ -634,18 +634,20 @@ const StaffPanel = ({ staff, onLogout }) => {
         <div style={{ height: 1, background: "var(--bord)", margin: "16px 0" }} />
         <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 12 }}>Yeni Mekan Ekle</div>
         <div style={{ ...card({ border: "1px solid var(--gdim)" }) }}>
-          {[["Mekan adı", newVenue.ad, v => setNewVenue({ ...newVenue, ad: v })],
-            ["İşletmeci adı", newVenue.isletmeci_ad, v => setNewVenue({ ...newVenue, isletmeci_ad: v })],
-            ["İşletmeci telefon", newVenue.isletmeci_tel, v => setNewVenue({ ...newVenue, isletmeci_tel: v }), "tel"],
-            ["Giriş şifresi", newVenue.sifre, v => setNewVenue({ ...newVenue, sifre: v }), "password"]
+          {[["İşletme Adı", newVenue.venue_ad, v => setNewVenue({ ...newVenue, venue_ad: v })],
+            ["Yetkili Adı Soyadı", newVenue.ad, v => setNewVenue({ ...newVenue, ad: v })],
+            ["Telefon", newVenue.tel, v => setNewVenue({ ...newVenue, tel: v }), "tel"],
+            ["E-posta (opsiyonel)", newVenue.email, v => setNewVenue({ ...newVenue, email: v }), "email"],
+            ["Geçici Şifre", newVenue.gecici_sifre, v => setNewVenue({ ...newVenue, gecici_sifre: v }), "password"]
           ].map(([ph, val, fn, tp = "text"], i) => (
             <input key={i} type={tp} value={val} placeholder={ph} onChange={e => fn(e.target.value)} style={{ width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 8 }} />
           ))}
           {vMsg && <div style={{ fontSize: 13, color: "#3aaa6a", marginBottom: 8 }}>{vMsg}</div>}
           <button onClick={async () => {
-            if (!newVenue.ad || !newVenue.isletmeci_tel || !newVenue.sifre) return;
-            const r = await post("panel.php", { action: "venue_add", slug: newVenue.ad, ...newVenue });
-            if (r.ok) { setVMsg("✅ Mekan oluşturuldu!"); setNewVenue({ ad: "", isletmeci_ad: "", isletmeci_tel: "", sifre: "" }); fetchAll(); }
+            if (!newVenue.venue_ad || !newVenue.ad || !newVenue.tel || !newVenue.gecici_sifre) return;
+            const r = await post("panel.php", { action: "venue_add", ...newVenue });
+            if (r.ok) { setVMsg(`✅ ${r.venue_ad} oluşturuldu! Giriş linki: ${window.location.origin}`); setNewVenue({ venue_ad: "", ad: "", tel: "", email: "", gecici_sifre: "" }); fetchAll(); }
+            else setVMsg("❌ Hata: " + (r.error || "bilinmeyen"));
           }} style={{ width: "100%", padding: "11px", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 10, color: "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 }}>Mekan Oluştur</button>
         </div>
       </div>
