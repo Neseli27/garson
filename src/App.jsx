@@ -508,6 +508,76 @@ const CustomerChat = ({ session, venueAd }) => {
 
 
 
+
+/* ══════════════════════════════════════════════════════════
+   IMAGE PICKER — Dosya yükleme + URL + önizleme
+══════════════════════════════════════════════════════════ */
+const ImagePicker = ({ value, onChange, uploading, onUpload }) => {
+  const fileRef = useRef(null);
+
+  return (
+    <div style={{ marginBottom: 9 }}>
+      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8, letterSpacing: .5 }}>ÜRÜN GÖRSELİ</div>
+
+      {/* Önizleme */}
+      {value ? (
+        <div style={{ position: "relative", marginBottom: 10 }}>
+          <img
+            src={value}
+            alt="Önizleme"
+            style={{
+              width: "100%", maxHeight: 180, objectFit: "cover",
+              borderRadius: 14,
+              border: "2px solid var(--gold)",
+              boxShadow: "0 0 0 1px rgba(201,145,58,.3), 0 4px 20px rgba(0,0,0,.4)",
+              display: "block",
+            }}
+            onError={e => { e.target.style.display = "none"; }}
+          />
+          <button
+            onClick={() => onChange("")}
+            style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:"50%", background:"rgba(0,0,0,.7)", border:"1px solid rgba(255,255,255,.2)", color:"#fff", cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}
+          >✕</button>
+        </div>
+      ) : (
+        <div style={{ width:"100%", height:100, borderRadius:14, border:"2px dashed var(--bord)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:10, background:"var(--surf)", color:"var(--muted)", fontSize:13 }}>
+          Görsel yok
+        </div>
+      )}
+
+      {/* Butonlar */}
+      <div style={{ display:"flex", gap:8 }}>
+        {/* Bilgisayardan yükle */}
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          style={{ flex:1, padding:"10px 8px", background:"rgba(201,145,58,.12)", border:"1px solid rgba(201,145,58,.4)", borderRadius:10, color:"var(--gsoft)", cursor:uploading?"not-allowed":"pointer", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
+        >
+          {uploading ? <><Spin /> Yükleniyor...</> : "📁 Bilgisayardan"}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          style={{ display:"none" }}
+          onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(f); e.target.value = ""; }}
+        />
+
+        {/* URL ile */}
+        <button
+          onClick={() => {
+            const url = window.prompt("Görsel URL'sini girin:");
+            if (url?.trim()) onChange(url.trim());
+          }}
+          style={{ flex:1, padding:"10px 8px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:10, color:"var(--muted)", cursor:"pointer", fontSize:13 }}
+        >
+          🔗 URL ile
+        </button>
+      </div>
+    </div>
+  );
+};
+
 /* ══════════════════════════════════════════════════════════
    MENU MANAGER — Tamamen bağımsız, kendi state'i var
 ══════════════════════════════════════════════════════════ */
@@ -529,6 +599,8 @@ const MenuManager = ({ venueId }) => {
   const [pWait, setPWait] = useState("");
   const [pDesc, setPDesc] = useState("");
   const [pImg, setPImg]   = useState("");
+  const [pImgUploading, setPImgUploading] = useState(false);
+  const [editImgUploading, setEditImgUploading] = useState(false);
   const [pBusy, setPBusy] = useState(false);
 
   // Düzenleme
@@ -543,6 +615,25 @@ const MenuManager = ({ venueId }) => {
       body: JSON.stringify({ action, ...data, _token: token() }),
     });
     return res.json();
+  };
+
+  const uploadImage = async (file, setBusy, setUrl) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      fd.append("_token", localStorage.getItem("sg_token") || "");
+      const res = await fetch(`${API}/upload.php`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("sg_token") || ""}` },
+        body: fd,
+      });
+      const r = await res.json();
+      if (r.ok) setUrl(r.url);
+      else flash("❌ " + (r.error || "Yükleme hatası"));
+    } catch(e) { flash("❌ Bağlantı hatası"); }
+    setBusy(false);
   };
 
   const load = async () => {
@@ -689,10 +780,18 @@ const MenuManager = ({ venueId }) => {
                   {catItems.map(item => (
                     <div key={item.id} style={{ padding:"10px 12px", marginBottom:6, background:"var(--surf2)", border:`1px solid ${item.aktif===0||item.aktif==="0"?"rgba(192,64,64,.3)":"var(--bord)"}`, borderRadius:11, opacity:item.aktif===0||item.aktif==="0"?0.6:1 }}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                        <div style={{flex:1}}>
-                          <div style={{fontSize:14,color:"var(--cream)",fontWeight:500}}>{item.name}</div>
-                          <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>{item.price}₺ · ~{item.wait}dk{item.desc ? " · "+item.desc : ""}</div>
-                          {(item.aktif===0||item.aktif==="0") && <div style={{fontSize:11,color:"#e06060",marginTop:2}}>⏸ Satış durduruldu</div>}
+                        <div style={{flex:1,display:"flex",gap:10,alignItems:"flex-start"}}>
+                          {item.img && (
+                            <img src={item.img} alt={item.name}
+                              style={{ width:52, height:52, objectFit:"cover", borderRadius:10, border:"2px solid var(--gold)", flexShrink:0, boxShadow:"0 0 0 1px rgba(201,145,58,.2)" }}
+                              onError={e=>e.target.style.display="none"}
+                            />
+                          )}
+                          <div>
+                            <div style={{fontSize:14,color:"var(--cream)",fontWeight:500}}>{item.name}</div>
+                            <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>{item.price}₺ · ~{item.wait}dk{item.desc ? " · "+item.desc : ""}</div>
+                            {(item.aktif===0||item.aktif==="0") && <div style={{fontSize:11,color:"#e06060",marginTop:2}}>⏸ Satış durduruldu</div>}
+                          </div>
                         </div>
                         <div style={{display:"flex",gap:5,marginLeft:8}}>
                           <button onClick={()=>toggleItem(item)} title={item.aktif?"Durdur":"Aktif Et"} style={{width:28,height:28,borderRadius:7,background:item.aktif?"rgba(201,145,58,.15)":"rgba(58,138,92,.15)",border:`1px solid ${item.aktif?"rgba(201,145,58,.4)":"rgba(58,138,92,.4)"}`,color:item.aktif?"var(--gsoft)":"#3aaa6a",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>{item.aktif?"⏸":"▶"}</button>
@@ -751,7 +850,12 @@ const MenuManager = ({ venueId }) => {
               {inp("Fiyat (₺) *", pPrice, setPPrice, "number")}
               {inp("Hazırlanma süresi (dk)", pWait, setPWait, "number")}
               {inp("Açıklama", pDesc, setPDesc)}
-              {inp("Görsel URL (opsiyonel)", pImg, setPImg)}
+              <ImagePicker
+                value={pImg}
+                onChange={setPImg}
+                uploading={pImgUploading}
+                onUpload={file => uploadImage(file, setPImgUploading, setPImg)}
+              />
               <button onClick={addItem} disabled={pBusy} style={{width:"100%",padding:"13px",background:pBusy?"var(--surf)":"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:pBusy?"var(--muted)":"#0b0704",cursor:pBusy?"not-allowed":"pointer",fontFamily:"var(--fh)",fontSize:15,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:4}}>
                 {pBusy ? <><Spin /> Kaydediliyor...</> : "+ Ürünü Kaydet"}
               </button>
@@ -772,11 +876,16 @@ const MenuManager = ({ venueId }) => {
               ["Fiyat (₺)",editItem.price,v=>setEditItem({...editItem,price:v}),"number"],
               ["Süre (dk)",editItem.wait,v=>setEditItem({...editItem,wait:v}),"number"],
               ["Açıklama",editItem.desc||"",v=>setEditItem({...editItem,desc:v})],
-              ["Görsel URL",editItem.img||"",v=>setEditItem({...editItem,img:v})]
             ].map(([ph,val,fn,tp="text"],i)=>(
               <input key={i} type={tp} value={val||""} placeholder={ph} onChange={e=>fn(e.target.value)}
                 style={{width:"100%",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:9,padding:"11px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:9}} />
             ))}
+            <ImagePicker
+              value={editItem.img||""}
+              onChange={v=>setEditItem({...editItem,img:v})}
+              uploading={editImgUploading}
+              onUpload={file=>uploadImage(file,setEditImgUploading,v=>setEditItem({...editItem,img:v}))}
+            />
             <div style={{display:"flex",gap:9}}>
               <button onClick={()=>setEditItem(null)} style={{flex:1,padding:"12px",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:10,color:"var(--muted)",cursor:"pointer",fontSize:14}}>İptal</button>
               <button onClick={updateItem} style={{flex:2,padding:"12px",background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:"#0b0704",cursor:"pointer",fontFamily:"var(--fh)",fontSize:15,fontWeight:600}}>Kaydet ✓</button>
