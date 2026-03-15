@@ -898,10 +898,6 @@ const StaffPanel = ({ staff, onLogout }) => {
               {/* Şifre değiştir */}
               <div style={{...card({border:"1px solid var(--gdim)"})}}>
                 <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--muted)",marginBottom:10}}>🔑 Şifre Değiştir</div>
-                {(()=>{
-                  const [p1,setP1] = [window._cp1||"", v=>{window._cp1=v;}];
-                  return null; // handled separately below
-                })()}
                 <ChangePassInline />
               </div>
             </>}
