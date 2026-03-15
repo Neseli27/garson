@@ -1168,44 +1168,44 @@ const StaffPanel = ({ staff, onLogout }) => {
               const total = sOrds.reduce((a, o) => a + (o.toplam || 0), 0);
               const hasNew = sOrds.some(o => o.status === "yeni");
               return (
-                <div key={s.id} style={{ ...card({ border: `1px solid ${hasNew ? "rgba(192,64,64,.5)" : "rgba(58,138,92,.35)"}`, animation: hasNew ? "blink 2s ease-in-out infinite" : "none" }) }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <div>
-                      <div style={{ fontFamily: "var(--fh)", fontSize: 18, color: "var(--cream)" }}>Masa {s.masa_no}</div>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>⏱ {elapsed(s.created_at)}</div>
+                <div key={s.id} style={{ padding:"10px 12px", background:"var(--surf2)", border:`1px solid ${hasNew?"rgba(192,64,64,.5)":"rgba(58,138,92,.3)"}`, borderRadius:12, marginBottom:10, animation:hasNew?"blink 2s ease-in-out infinite":"none" }}>
+                  {/* Masa başlık — kompakt */}
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <span style={{ fontFamily:"var(--fh)", fontSize:15, color:"var(--cream)" }}>Masa {s.masa_no}</span>
+                      <span style={{ fontSize:11, color:"var(--muted)" }}>⏱ {elapsed(s.created_at)}</span>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontFamily: "var(--fh)", fontSize: 18, color: "var(--gsoft)" }}>
-                        {isOwner ? `${total}₺` : `${sOrds.length} sipariş`}
-                      </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      {isOwner && <span style={{ fontFamily:"var(--fh)", fontSize:14, color:"var(--gsoft)" }}>{total}₺</span>}
+                      {/* Aksiyon butonları — ikona indirge */}
+                      <button onClick={()=>{ setGarsonOrder(s); setGarsonCart([]); }} title="Sipariş Ekle" style={{ width:28, height:28, borderRadius:7, background:"rgba(58,138,92,.15)", border:"1px solid rgba(58,138,92,.4)", color:"#3aaa6a", cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+                      {isOwner && <button onClick={()=>sClose(s.id)} title="Hesap Ödendi — Kapat" style={{ width:28, height:28, borderRadius:7, background:"rgba(201,145,58,.15)", border:"1px solid rgba(201,145,58,.4)", color:"var(--gsoft)", cursor:"pointer", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>}
+                      {isOwner && <button onClick={()=>sAct(s.id,"askida")} title="Engelle" style={{ width:28, height:28, borderRadius:7, background:"rgba(192,64,64,.15)", border:"1px solid rgba(192,64,64,.3)", color:"#e06060", cursor:"pointer", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>}
                     </div>
                   </div>
+                  {/* Siparişler — kompakt */}
                   {sOrds.length === 0
-                    ? <div style={{ fontSize: 13, color: "var(--muted)", fontStyle: "italic" }}>Henüz sipariş yok</div>
+                    ? <div style={{ fontSize:12, color:"var(--muted)", fontStyle:"italic" }}>Henüz sipariş yok</div>
                     : sOrds.map(o => (
-                      <div key={o.id} style={{ padding: "9px 11px", background: "var(--surf)", borderRadius: 10, marginBottom: 7, border: `1px solid ${o.status === "yeni" ? "rgba(192,64,64,.4)" : o.status === "hazırlanıyor" ? "rgba(201,145,58,.3)" : "rgba(58,138,92,.3)"}` }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                          <span style={{ fontSize: 11, color: "var(--muted)" }}>🕐 {o.created_at?.slice(11, 16)}</span>
-                          <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, fontWeight: 600, background: o.status === "yeni" ? "rgba(192,64,64,.2)" : o.status === "hazırlanıyor" ? "rgba(201,145,58,.2)" : "rgba(58,138,92,.2)", color: o.status === "yeni" ? "#e06060" : o.status === "hazırlanıyor" ? "var(--gsoft)" : "#3aaa6a" }}>{o.status}</span>
-                        </div>
-                        {(o.urunler || []).map((u, i) => (
-                          <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--cream)", padding: "2px 0" }}>
-                            <span><strong style={{ color: "var(--gsoft)" }}>{u.adet}×</strong> {u.ad}{o.notlar?.includes("[Garson]") ? " 👨‍🍳" : ""}</span>
-                            <span style={{ color: "var(--muted)" }}>{u.adet * u.fiyat}₺</span>
+                      <div key={o.id} style={{ padding:"6px 9px", background:"var(--surf)", borderRadius:8, marginBottom:5, border:`1px solid ${o.status==="yeni"?"rgba(192,64,64,.35)":o.status==="hazırlanıyor"?"rgba(201,145,58,.25)":"rgba(58,138,92,.25)"}` }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                          <div style={{ flex:1 }}>
+                            {(o.urunler||[]).map((u,i)=>(
+                              <span key={i} style={{ fontSize:12, color:"var(--cream)" }}>
+                                {i>0 && <span style={{color:"var(--muted)"}}>, </span>}
+                                <strong style={{color:"var(--gsoft)"}}>{u.adet}×</strong> {u.ad}{o.notlar?.includes("[Garson]")?" 👨‍🍳":""}
+                              </span>
+                            ))}
                           </div>
-                        ))}
-                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 7, marginTop: 7 }}>
-                          {o.status === "yeni"         && AB("🔥 Hazırlıyorum", () => oAct(o.id, "hazırlanıyor"), "201,145,58")}
-                          {o.status === "hazırlanıyor" && AB("✅ Servis Et",    () => oAct(o.id, "hazır"),        "58,138,92")}
+                          <div style={{ display:"flex", alignItems:"center", gap:6, marginLeft:8, flexShrink:0 }}>
+                            <span style={{ fontSize:10, padding:"2px 7px", borderRadius:20, fontWeight:600, background:o.status==="yeni"?"rgba(192,64,64,.2)":o.status==="hazırlanıyor"?"rgba(201,145,58,.2)":"rgba(58,138,92,.2)", color:o.status==="yeni"?"#e06060":o.status==="hazırlanıyor"?"var(--gsoft)":"#3aaa6a", whiteSpace:"nowrap" }}>{o.status}</span>
+                            {o.status==="yeni"         && <button onClick={()=>oAct(o.id,"hazırlanıyor")} title="Hazırlıyorum" style={{width:24,height:24,borderRadius:6,background:"rgba(201,145,58,.2)",border:"1px solid rgba(201,145,58,.4)",color:"var(--gsoft)",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>🔥</button>}
+                            {o.status==="hazırlanıyor" && <button onClick={()=>oAct(o.id,"hazır")} title="Servis Et" style={{width:24,height:24,borderRadius:6,background:"rgba(58,138,92,.2)",border:"1px solid rgba(58,138,92,.4)",color:"#3aaa6a",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>✅</button>}
+                          </div>
                         </div>
                       </div>
                     ))
                   }
-                  <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-                    {AB("➕ Sipariş Ekle", () => { setGarsonOrder(s); setGarsonCart([]); }, "58,138,92")}
-                    {isOwner && AB("✅ Hesap Ödendi — Kapat", () => sClose(s.id), "201,145,58")}
-                    {isOwner && AB("🚫 Engelle", () => sAct(s.id, "askida"), "192,64,64")}
-                  </div>
                 </div>
               );
             })}
