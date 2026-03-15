@@ -580,7 +580,9 @@ const MenuManager = ({ venueId }) => {
     if (r.ok || r.msg === "zaten var") {
       flash("✅ Kategori eklendi: " + k);
       setCatName("");
-      await load();
+      setCats(prev => prev.includes(k) ? prev : [...prev, k]);
+      if (!pCat) setPCat(k);
+      load();
     } else {
       flash("❌ " + (r.error || "Hata"));
     }
