@@ -897,6 +897,368 @@ const MenuManager = ({ venueId }) => {
   );
 };
 
+
+/* ══════════════════════════════════════════════════════════
+   QR MANAGER — Tam özellikli QR tasarım ve indirme
+══════════════════════════════════════════════════════════ */
+const QRManager = ({ tables, venueAd }) => {
+  const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
+
+  // Seçimler
+  const [selected, setSelected] = useState(new Set()); // table id'leri
+  const [selectAll, setSelectAll] = useState(false);
+
+  // Tasarım ayarları
+  const [cfg, setCfg] = useState({
+    bg:       "#ffffff",   // QR arka plan
+    fg:       "#1a0f05",   // QR rengi
+    size:     400,         // px (iç QR)
+    altText:  "Sipariş için okutun",
+    showName: true,        // masa adı göster
+    showVenue:true,        // mekan adı göster
+    cardBg:   "#1a0f05",  // kart arka planı
+    cardFg:   "#e8b86d",  // kart yazı rengi
+    rounded:  true,        // yuvarlak köşe
+    border:   true,        // kenarlık
+    borderCol:"#e8b86d",
+    logoText: "",          // mekan logosu (emoji veya kısa metin)
+    format:   "png",       // png | svg
+    layout:   "single",   // single | a4-9 | a4-16 | a4-1
+  });
+
+  const set = (k, v) => setCfg(p => ({ ...p, [k]: v }));
+
+  const qrUrl = (token, size = cfg.size) =>
+    `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(APP_URL + "?qr=" + token)}&bgcolor=${cfg.bg.slice(1)}&color=${cfg.fg.slice(1)}&qzone=1&format=${cfg.format === "svg" ? "svg" : "png"}`;
+
+  // Önizleme — tek masa
+  const previewTable = tables[0] || null;
+
+  // Seçim işlemleri
+  const toggleAll = () => {
+    if (selectAll) { setSelected(new Set()); setSelectAll(false); }
+    else { setSelected(new Set(tables.map(t => t.id))); setSelectAll(true); }
+  };
+  const toggle = (id) => setSelected(p => {
+    const n = new Set(p);
+    n.has(id) ? n.delete(id) : n.add(id);
+    setSelectAll(n.size === tables.length);
+    return n;
+  });
+
+  // Kart HTML üret (canvas için)
+  const cardStyle = (t) => {
+    const url = qrUrl(t.qr_token, cfg.size);
+    const w = 320, h = cfg.showName || cfg.showVenue ? 380 : 340;
+    return { url, w, h };
+  };
+
+  // PNG indir — canvas ile render
+  const downloadPNG = async (t) => {
+    const { url } = cardStyle(t);
+    const canvas = document.createElement("canvas");
+    const W = 800, H = 960;
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext("2d");
+
+    // Kart arka planı
+    ctx.fillStyle = cfg.cardBg;
+    if (cfg.rounded) {
+      const r = 36;
+      ctx.beginPath();
+      ctx.moveTo(r, 0); ctx.lineTo(W-r, 0);
+      ctx.quadraticCurveTo(W, 0, W, r);
+      ctx.lineTo(W, H-r); ctx.quadraticCurveTo(W, H, W-r, H);
+      ctx.lineTo(r, H); ctx.quadraticCurveTo(0, H, 0, H-r);
+      ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
+      ctx.closePath(); ctx.fill();
+    } else {
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // Kenarlık
+    if (cfg.border) {
+      ctx.strokeStyle = cfg.borderCol;
+      ctx.lineWidth = 6;
+      if (cfg.rounded) { ctx.stroke(); } else { ctx.strokeRect(3, 3, W-6, H-6); }
+    }
+
+    // Mekan adı
+    if (cfg.showVenue && venueAd) {
+      ctx.fillStyle = cfg.cardFg;
+      ctx.font = "bold 36px serif";
+      ctx.textAlign = "center";
+      ctx.fillText(cfg.logoText ? cfg.logoText + " " + venueAd : venueAd, W/2, 70);
+    }
+
+    // QR kodu
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    await new Promise((res, rej) => {
+      img.onload = res; img.onerror = rej;
+      img.src = url;
+    });
+    const qSize = 560;
+    const qX = (W - qSize) / 2;
+    const qY = cfg.showVenue ? 110 : 60;
+
+    // QR çerçeve
+    if (cfg.border) {
+      ctx.fillStyle = cfg.bg;
+      if (cfg.rounded) {
+        const rq = 16;
+        ctx.beginPath();
+        ctx.moveTo(qX-12+rq, qY-12); ctx.lineTo(qX+qSize+12-rq, qY-12);
+        ctx.quadraticCurveTo(qX+qSize+12, qY-12, qX+qSize+12, qY-12+rq);
+        ctx.lineTo(qX+qSize+12, qY+qSize+12-rq);
+        ctx.quadraticCurveTo(qX+qSize+12, qY+qSize+12, qX+qSize+12-rq, qY+qSize+12);
+        ctx.lineTo(qX-12+rq, qY+qSize+12); ctx.quadraticCurveTo(qX-12, qY+qSize+12, qX-12, qY+qSize+12-rq);
+        ctx.lineTo(qX-12, qY-12+rq); ctx.quadraticCurveTo(qX-12, qY-12, qX-12+rq, qY-12);
+        ctx.closePath(); ctx.fill();
+      } else {
+        ctx.fillRect(qX-12, qY-12, qSize+24, qSize+24);
+      }
+      ctx.strokeStyle = cfg.borderCol; ctx.lineWidth = 3;
+      ctx.strokeRect(qX-12, qY-12, qSize+24, qSize+24);
+    }
+
+    ctx.drawImage(img, qX, qY, qSize, qSize);
+
+    // Masa adı
+    const textY = qY + qSize + (cfg.border ? 50 : 38);
+    if (cfg.showName) {
+      ctx.fillStyle = cfg.cardFg;
+      ctx.font = "bold 64px serif";
+      ctx.textAlign = "center";
+      ctx.fillText("MASA " + t.masa_no, W/2, textY);
+    }
+
+    // Alt metin
+    if (cfg.altText) {
+      ctx.fillStyle = cfg.cardFg + "99";
+      ctx.font = "28px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(cfg.altText, W/2, textY + (cfg.showName ? 50 : 10));
+    }
+
+    const link = document.createElement("a");
+    link.download = `masa-${t.masa_no}-qr.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
+
+  // A4 sayfası (9 veya 16 QR)
+  const downloadA4 = async (perPage = 9) => {
+    const sel = tables.filter(t => selected.has(t.id));
+    if (!sel.length) { alert("Önce masa seçin"); return; }
+
+    const cols  = perPage === 9 ? 3 : 4;
+    const rows  = perPage === 9 ? 3 : 4;
+    const A4W   = 2480, A4H = 3508; // 300dpi A4
+    const pad   = 80;
+    const gap   = 20;
+    const cellW = Math.floor((A4W - pad*2 - gap*(cols-1)) / cols);
+    const cellH = Math.floor((A4H - pad*2 - gap*(rows-1)) / rows);
+    const qSize = Math.min(cellW, cellH) - 100;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = A4W; canvas.height = A4H;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, A4W, A4H);
+
+    for (let i = 0; i < Math.min(sel.length, perPage); i++) {
+      const t   = sel[i];
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const cx  = pad + col * (cellW + gap);
+      const cy  = pad + row * (cellH + gap);
+
+      // Hücre arka planı
+      ctx.fillStyle = cfg.cardBg;
+      ctx.fillRect(cx, cy, cellW, cellH);
+      if (cfg.border) {
+        ctx.strokeStyle = cfg.borderCol; ctx.lineWidth = 4;
+        ctx.strokeRect(cx+2, cy+2, cellW-4, cellH-4);
+      }
+
+      // QR
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      const url = qrUrl(t.qr_token, qSize);
+      await new Promise((res, rej) => { img.onload=res; img.onerror=rej; img.src=url; });
+      const qX = cx + (cellW - qSize) / 2;
+      const qY = cy + 40;
+      ctx.fillStyle = cfg.bg;
+      ctx.fillRect(qX-8, qY-8, qSize+16, qSize+16);
+      ctx.drawImage(img, qX, qY, qSize, qSize);
+
+      // Masa numarası
+      ctx.fillStyle = cfg.cardFg;
+      ctx.font = `bold ${Math.floor(cellH * 0.1)}px serif`;
+      ctx.textAlign = "center";
+      ctx.fillText("MASA " + t.masa_no, cx + cellW/2, cy + cellH - 30);
+    }
+
+    const link = document.createElement("a");
+    link.download = `qr-a4-${perPage}li.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
+
+  const Swatch = ({ val, onChange, label }) => (
+    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+      <input type="color" value={val} onChange={e=>onChange(e.target.value)}
+        style={{ width:32, height:32, border:"none", borderRadius:6, cursor:"pointer", padding:0, background:"none" }} />
+      <span style={{ fontSize:12, color:"var(--muted)" }}>{label}</span>
+    </div>
+  );
+
+  const Tog = ({ val, onChange, label }) => (
+    <button onClick={()=>onChange(!val)} style={{ display:"flex", alignItems:"center", gap:8, background:"none", border:"none", cursor:"pointer", padding:"4px 0", marginBottom:6 }}>
+      <div style={{ width:36, height:20, borderRadius:10, background:val?"var(--gold)":"var(--bord)", transition:"background .2s", position:"relative", flexShrink:0 }}>
+        <div style={{ width:16, height:16, borderRadius:"50%", background:"#fff", position:"absolute", top:2, left:val?18:2, transition:"left .2s" }} />
+      </div>
+      <span style={{ fontSize:13, color:"var(--cream)" }}>{label}</span>
+    </button>
+  );
+
+  return (
+    <div>
+      {/* Önizleme */}
+      {previewTable && (
+        <div style={{ marginBottom:20 }}>
+          <div style={{ fontSize:12, color:"var(--muted)", marginBottom:10, letterSpacing:.8, fontFamily:"var(--fh)" }}>ÖNİZLEME</div>
+          <div style={{ display:"flex", justifyContent:"center" }}>
+            <div style={{
+              background: cfg.cardBg,
+              border: cfg.border ? `3px solid ${cfg.borderCol}` : "none",
+              borderRadius: cfg.rounded ? 18 : 4,
+              padding: "18px 18px 14px",
+              textAlign:"center", width:180, boxShadow:"0 8px 32px rgba(0,0,0,.5)"
+            }}>
+              {cfg.showVenue && venueAd && (
+                <div style={{ fontFamily:"var(--fh)", fontSize:11, color:cfg.cardFg, marginBottom:8, letterSpacing:.5 }}>
+                  {cfg.logoText && <span style={{marginRight:4}}>{cfg.logoText}</span>}
+                  {venueAd}
+                </div>
+              )}
+              <img src={qrUrl(previewTable.qr_token, 200)} alt="QR"
+                style={{ width:140, height:140, display:"block", margin:"0 auto",
+                  border: cfg.border ? `2px solid ${cfg.borderCol}` : "none",
+                  borderRadius: cfg.rounded ? 8 : 0, background: cfg.bg }}
+                crossOrigin="anonymous"
+              />
+              {cfg.showName && (
+                <div style={{ fontFamily:"var(--fh)", fontSize:16, color:cfg.cardFg, marginTop:10, fontWeight:700 }}>MASA {previewTable.masa_no}</div>
+              )}
+              {cfg.altText && (
+                <div style={{ fontSize:9, color:cfg.cardFg+"99", marginTop:4 }}>{cfg.altText}</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tasarım ayarları */}
+      <div style={{ padding:"14px 15px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14, marginBottom:14 }}>
+        <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--gsoft)", marginBottom:12, letterSpacing:.8 }}>TASARIM</div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 20px" }}>
+          <Swatch val={cfg.cardBg} onChange={v=>set("cardBg",v)} label="Kart arka planı" />
+          <Swatch val={cfg.cardFg} onChange={v=>set("cardFg",v)} label="Yazı rengi" />
+          <Swatch val={cfg.bg}     onChange={v=>set("bg",v)}     label="QR arka planı" />
+          <Swatch val={cfg.fg}     onChange={v=>set("fg",v)}     label="QR rengi" />
+          <Swatch val={cfg.borderCol} onChange={v=>set("borderCol",v)} label="Kenarlık rengi" />
+        </div>
+
+        <div style={{ height:1, background:"var(--bord)", margin:"12px 0" }} />
+
+        <Tog val={cfg.showVenue} onChange={v=>set("showVenue",v)} label="Mekan adı göster" />
+        <Tog val={cfg.showName}  onChange={v=>set("showName",v)}  label="Masa numarası göster" />
+        <Tog val={cfg.border}    onChange={v=>set("border",v)}    label="Kenarlık" />
+        <Tog val={cfg.rounded}   onChange={v=>set("rounded",v)}   label="Yuvarlak köşe" />
+
+        <div style={{ marginTop:10 }}>
+          <div style={{ fontSize:12, color:"var(--muted)", marginBottom:6 }}>Logo / Emoji</div>
+          <input type="text" value={cfg.logoText} onChange={e=>set("logoText",e.target.value)}
+            placeholder="🍕 veya ★ veya boş bırak"
+            style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"8px 12px", color:"var(--cream)", fontSize:14, outline:"none" }}
+          />
+        </div>
+
+        <div style={{ marginTop:10 }}>
+          <div style={{ fontSize:12, color:"var(--muted)", marginBottom:6 }}>Alt yazı</div>
+          <input type="text" value={cfg.altText} onChange={e=>set("altText",e.target.value)}
+            placeholder="Sipariş için okutun"
+            style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"8px 12px", color:"var(--cream)", fontSize:14, outline:"none" }}
+          />
+        </div>
+      </div>
+
+      {/* Format */}
+      <div style={{ padding:"12px 15px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14, marginBottom:14 }}>
+        <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--gsoft)", marginBottom:10, letterSpacing:.8 }}>FORMAT</div>
+        <div style={{ display:"flex", gap:8 }}>
+          {[["png","PNG — Yazıcı"],["svg","SVG — Matbaa / Vektörel"]].map(([v,l])=>(
+            <button key={v} onClick={()=>set("format",v)} style={{ flex:1, padding:"9px 6px", background:cfg.format===v?"var(--gdim)":"var(--surf)", border:`1px solid ${cfg.format===v?"var(--gold)":"var(--bord)"}`, borderRadius:10, color:cfg.format===v?"var(--gsoft)":"var(--muted)", cursor:"pointer", fontSize:12 }}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Masa seçimi */}
+      <div style={{ padding:"12px 15px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14, marginBottom:14 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+          <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--gsoft)", letterSpacing:.8 }}>MASA SEÇ ({selected.size}/{tables.length})</div>
+          <button onClick={toggleAll} style={{ fontSize:12, color:"var(--gold)", background:"none", border:"none", cursor:"pointer" }}>
+            {selectAll ? "Seçimi Kaldır" : "Tümünü Seç"}
+          </button>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:6 }}>
+          {tables.sort((a,b)=>a.masa_no-b.masa_no).map(t=>(
+            <button key={t.id} onClick={()=>toggle(t.id)} style={{
+              padding:"8px 4px", borderRadius:8, fontSize:13, fontFamily:"var(--fh)",
+              background:selected.has(t.id)?"var(--gdim)":"var(--surf)",
+              border:`1px solid ${selected.has(t.id)?"var(--gold)":"var(--bord)"}`,
+              color:selected.has(t.id)?"var(--gsoft)":"var(--muted)", cursor:"pointer"
+            }}>{t.masa_no}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* İndirme */}
+      <div style={{ padding:"12px 15px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14 }}>
+        <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--gsoft)", marginBottom:12, letterSpacing:.8 }}>İNDİR</div>
+
+        {/* Tek tek indir */}
+        <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--muted)", marginBottom:8 }}>Tek Tek</div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6, marginBottom:14 }}>
+          {tables.filter(t=>selected.has(t.id)).slice(0,12).map(t=>(
+            <button key={t.id} onClick={()=>downloadPNG(t)} style={{ padding:"8px 4px", background:"rgba(201,145,58,.12)", border:"1px solid rgba(201,145,58,.35)", borderRadius:9, color:"var(--gsoft)", cursor:"pointer", fontSize:12, fontFamily:"var(--fh)" }}>
+              ↓ Masa {t.masa_no}
+            </button>
+          ))}
+          {selected.size === 0 && <div style={{gridColumn:"1/-1",color:"var(--muted)",fontSize:12,fontStyle:"italic"}}>Masa seçin</div>}
+        </div>
+
+        {/* Toplu baskı */}
+        <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--muted)", marginBottom:8 }}>Toplu Baskı (PNG — A4)</div>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={()=>downloadA4(9)} style={{ flex:1, padding:"11px", background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:13, fontWeight:600 }}>
+            A4 — 9 QR (3×3)
+          </button>
+          <button onClick={()=>downloadA4(16)} style={{ flex:1, padding:"11px", background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:13, fontWeight:600 }}>
+            A4 — 16 QR (4×4)
+          </button>
+        </div>
+        <div style={{ fontSize:11, color:"var(--muted)", marginTop:8, fontStyle:"italic" }}>
+          💡 SVG format seçiliyse tek tek indirme vektörel olur — matbaa kalitesi
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ══════════════════════════════════════════════════════════
    CHANGE PASSWORD SCREEN (ilk giriş)
 ══════════════════════════════════════════════════════════ */
@@ -1291,7 +1653,7 @@ const StaffPanel = ({ staff, onLogout }) => {
           <>
             {/* Alt sekmeler */}
             <div style={{ display:"flex", gap:0, marginBottom:16, background:"var(--surf2)", borderRadius:12, padding:3 }}>
-              {[["ozet","📊 Özet"],["menu","📋 Menü"]].map(([id,label]) => (
+              {[["ozet","📊 Özet"],["menu","📋 Menü"],["qr","🔲 QR"]].map(([id,label]) => (
                 <button key={id} onClick={()=>setYTab(id)} style={{ flex:1, padding:"9px 6px", background:yTab===id?"var(--surf)":"transparent", border:"none", borderRadius:10, cursor:"pointer", fontSize:12.5, color:yTab===id?"var(--gsoft)":"var(--muted)", fontWeight:yTab===id?600:400, transition:"all .2s" }}>{label}</button>
               ))}
             </div>
@@ -1326,6 +1688,10 @@ const StaffPanel = ({ staff, onLogout }) => {
             {/* ── MENÜ ── */}
             {yTab === "menu" && (
               <MenuManager venueId={vid} />
+            )}
+
+            {yTab === "qr" && (
+              <QRManager tables={tables} venueAd={staff.venue_ad} />
             )}
           </>
         )}
