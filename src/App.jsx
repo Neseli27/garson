@@ -2027,6 +2027,7 @@ export default function App() {
   const [sessionStatus, setSessionStatus] = useState(null);
   const [qrLoading, setQrLoading]         = useState(isCustomer);
   const [qrError, setQrError]             = useState("");
+  const [sessionClosed, setSessionClosed] = useState(false); // hesap ödendi, yeni session açma
 
   // QR yükle
   useEffect(() => {
@@ -2060,31 +2061,42 @@ export default function App() {
     }).catch(() => { setQrError("Bağlantı hatası."); setQrLoading(false); });
   }, []);
 
-  // Oturum yoksa oluştur
+  // Oturum yoksa oluştur — ama kapatılmışsa açma
   useEffect(() => {
-    if (!qrInfo || session || qrLoading) return;
+    if (!qrInfo || session || qrLoading || sessionClosed) return;
     post("session.php", { action: "create", table_id: qrInfo.table_id, venue_id: qrInfo.venue_id, masa_no: qrInfo.masa_no }).then(r => {
       if (r.session) {
         setSession(r.session); setSessionStatus(r.session.durum);
         localStorage.setItem(`sg_ses_${qrInfo.table_id}`, r.session.id);
+      } else if (r.code === "DUPLICATE") {
+        // Başka biri oturuyor, bildir
+        setQrError("Bu masada zaten aktif bir oturum var.");
       }
     });
-  }, [qrInfo, session, qrLoading]);
+  }, [qrInfo, session, qrLoading, sessionClosed]);
 
   // Oturum durumu poll
   useEffect(() => {
     if (!session) return;
     const poll = async () => {
       const r = await get(`session.php?id=${session.id}`);
-      if (r.error) { localStorage.removeItem(`sg_ses_${qrInfo?.table_id}`); localStorage.removeItem('sg_qr_token'); setSession(null); setSessionStatus(null); return; }
+      if (r.error) {
+        // Session silinmiş (hesap ödendi) — temizle ve yeniden açma
+        localStorage.removeItem(`sg_ses_${qrInfo?.table_id}`);
+        localStorage.removeItem('sg_qr_token');
+        setSession(null); setSessionStatus(null);
+        setSessionClosed(true); // ← kritik: yeni session açma
+        return;
+      }
       if (r.session?.durum !== sessionStatus) {
         setSessionStatus(r.session.durum);
         setSession(r.session);
         if (r.session.durum === "aktif") playBeep(660, .3, 2);
         if (r.session.durum === "askida") {
-          // Hesap ödendi / oturum kapandı — QR temizle
+          // Hesap ödendi — QR ve session temizle, yeniden session açma
           localStorage.removeItem("sg_qr_token");
           localStorage.removeItem(`sg_ses_${qrInfo?.table_id}`);
+          setSessionClosed(true);
         }
       }
     };
@@ -2101,6 +2113,16 @@ export default function App() {
     if (qrLoading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}><Spin /></div>;
     if (qrError)   return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 28, flexDirection: "column", gap: 16 }}><div style={{ fontSize: 40 }}>❌</div><div style={{ fontFamily: "var(--fh)", fontSize: 20, color: "var(--cream)", textAlign: "center" }}>{qrError}</div></div>;
     if (!session || sessionStatus === "bekliyor") return <WaitingScreen venueAd={qrInfo?.venue_ad || ""} masaNo={qrInfo?.masa_no || ""} />;
+    if (sessionStatus === "askida" || sessionClosed) return (
+      <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"var(--bg)",padding:28}}>
+        <div style={{fontSize:52,marginBottom:20}}>🙏</div>
+        <div style={{fontFamily:"var(--fh)",fontSize:22,color:"var(--cream)",marginBottom:10,textAlign:"center"}}>Teşekkürler!</div>
+        <div style={{fontSize:14,color:"var(--muted)",textAlign:"center",lineHeight:1.8}}>
+          Hesabınız kapatıldı.<br/>
+          <span style={{color:"var(--gsoft)"}}>{qrInfo?.venue_ad}</span>'e tekrar bekleriz.
+        </div>
+      </div>
+    );
     return <CustomerChat session={session} venueAd={qrInfo?.venue_ad || ""} />;
   }
 
