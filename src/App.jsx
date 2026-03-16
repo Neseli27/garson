@@ -1782,9 +1782,20 @@ const StaffPanel = ({ staff, onLogout }) => {
 
         {/* ── BİLDİRİMLER ── */}
         {!loading && tab === "bildirim" && (
-          notifs.length === 0
-            ? <div style={{ textAlign: "center", color: "var(--muted)", marginTop: 60 }}><div style={{ fontSize: 36 }}>🔕</div><div style={{ marginTop: 12, fontSize: 14, fontStyle: "italic" }}>Bildirim yok</div></div>
-            : [...notifs].reverse().map(n => (
+          <>
+            {notifs.filter(n=>!n.acked).length > 0 && (
+              <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
+                <button onClick={async()=>{
+                  await Promise.all(notifs.filter(n=>!n.acked).map(n=>post("panel.php",{action:"ack",id:n.id})));
+                  fetchAll();
+                }} style={{fontSize:12,color:"var(--muted)",background:"none",border:"1px solid var(--bord)",borderRadius:8,padding:"5px 12px",cursor:"pointer"}}>
+                  ✓ Tümünü Okundu İşaretle
+                </button>
+              </div>
+            )}
+            {notifs.length === 0
+              ? <div style={{ textAlign: "center", color: "var(--muted)", marginTop: 60 }}><div style={{ fontSize: 36 }}>🔕</div><div style={{ marginTop: 12, fontSize: 14, fontStyle: "italic" }}>Bildirim yok</div></div>
+              : [...notifs].reverse().map(n => (
               <div key={n.id} style={{ ...card({ background: n.type === "garson" ? "rgba(58,106,154,.1)" : n.type === "bekliyor" ? "rgba(58,106,154,.08)" : "rgba(201,145,58,.08)", border: `1px solid ${n.type === "garson" || n.type === "bekliyor" ? "rgba(58,106,154,.4)" : "rgba(201,145,58,.35)"}`, animation: !n.acked ? "blink 1.5s ease-in-out infinite" : "none" }) }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
@@ -1797,7 +1808,8 @@ const StaffPanel = ({ staff, onLogout }) => {
                   {!n.acked && <button onClick={() => ack(n.id)} style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 8, color: "var(--muted)", cursor: "pointer", padding: "5px 11px", fontSize: 12, flexShrink: 0, marginLeft: 9 }}>✓ Tamam</button>}
                 </div>
               </div>
-            ))
+            ))}
+          </>
         )}
 
         {/* ── YÖNETİM (sadece işletmeci) ── */}
