@@ -278,7 +278,11 @@ const HesapView = ({ session, tableOrders, venueId, onCallWaiter }) => {
   }, []);
 
   const requestBill = async () => {
-    await post("panel.php", { action: "notify", venue_id: venueId, session_id: session.id, masa_no: session.masa_no, type: "hesap", payment: pay, total });
+    await fetch(`${API}/panel.php`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "notify", venue_id: venueId, session_id: session.id, masa_no: session.masa_no, type: "hesap", payment: pay, total }),
+    });
     setSent(true); setPayModal(false); playBeep(550, .35, 2);
   };
 
@@ -490,14 +494,21 @@ const CustomerChat = ({ session, venueAd }) => {
   };
 
   const callWaiter = async () => {
-    await post("panel.php", { action: "notify", venue_id: session.venue_id, session_id: session.id, masa_no: session.masa_no, type: "garson" });
-    playBeep(440, .3, 2); alert("✓ Garson çağrıldı!");
+    try {
+      await fetch(`${API}/panel.php`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "notify", venue_id: session.venue_id, session_id: session.id, masa_no: session.masa_no, type: "garson" }),
+      });
+      playBeep(440, .3, 2);
+      alert("✓ Garson çağrıldı!");
+    } catch { alert("Bağlantı hatası, tekrar deneyin."); }
   };
 
   const cartCount = cart.reduce((s, c) => s + c.qty, 0);
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)", overflow: "hidden" }}>
+    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "var(--bg)", overflow: "hidden" }}>
       {/* Header */}
       <div style={{ padding: "7px 12px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid var(--bord)", background: "rgba(22,14,8,.95)", flexShrink: 0 }}>
         <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--gold) 0%,#6b3d10 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>🍽️</div>
@@ -522,8 +533,8 @@ const CustomerChat = ({ session, venueAd }) => {
         {tab === "menu" && <MenuView menu={menu} specials={specials} cart={cart} onAdd={addToCart} onRemove={removeFromCart} onOrder={submitCart} orderLoading={orderLoading} />}
         {tab === "hesap" && <HesapView session={session} tableOrders={tableOrders} venueId={session.venue_id} onCallWaiter={callWaiter} />}
         {tab === "chat" && (
-          <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 13px 8px" }}>
+          <div style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", padding: "14px 13px 8px" }}>
               {msgs.map((m, i) => {
                 const isUser = m.role === "user";
                 const content = cleanText(m.content);
@@ -611,7 +622,7 @@ const CustomerChat = ({ session, venueAd }) => {
               </div>
             )}
 
-            <div style={{ padding: "0 12px 7px", display: "flex", gap: 7, overflowX: "auto", flexShrink: 0 }}>
+            <div style={{ padding: "4px 12px 6px", display: "flex", gap: 7, overflowX: "auto", flexShrink: 0, scrollbarWidth: "none" }}>
               {["Menüyü anlat", "Ne önerirsin?", "Sipariş vermek istiyorum", "☕ Kahve falı"].map(s => (
                 <button key={s} onClick={() => {
                 if (s === "☕ Kahve falı") {
