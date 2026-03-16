@@ -985,6 +985,8 @@ const StaffPanel = ({ staff, onLogout }) => {
   const [garsonOrder, setGarsonOrder] = useState(null);
   const [garsonCart, setGarsonCart]   = useState([]);
   const [garsonLoading, setGarsonLoading] = useState(false);
+  const [masaPopup, setMasaPopup] = useState(null); // popup için seçili masa/oturum
+  const [newMasa, setNewMasa] = useState(""); // masa ekleme input
   const [yTab, setYTab]       = useState("ozet"); // yönetim alt sekme
   const [newMasa, setNewMasa]   = useState("");
   const [newItem, setNewItem]   = useState({ cat: "", name: "", price: "", desc: "", wait: "" });
@@ -1160,73 +1162,103 @@ const StaffPanel = ({ staff, onLogout }) => {
         {/* ── MASALAR ── */}
         {!loading && tab === "masalar" && (
           <>
-            {active.length === 0 && orders.filter(o => o.status !== "hazır").length === 0 && (
-              <div style={{ textAlign: "center", color: "var(--muted)", marginTop: 60 }}><div style={{ fontSize: 36 }}>🪑</div><div style={{ marginTop: 12, fontSize: 14, fontStyle: "italic" }}>Aktif masa yok</div></div>
+            {/* Masa ekleme — üstte kompakt */}
+            {isOwner && (
+              <div style={{display:"flex",gap:8,marginBottom:14}}>
+                <input type="text" value={newMasa} onChange={e=>setNewMasa(e.target.value)}
+                  placeholder="Masa ekle: 5 veya 1-50"
+                  onKeyDown={e=>{ if(e.key==="Enter") e.currentTarget.nextSibling.click(); }}
+                  style={{flex:1,background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:10,padding:"9px 13px",color:"var(--cream)",fontSize:13,outline:"none"}}
+                />
+                <button onClick={async()=>{
+                  if(!newMasa.trim()) return;
+                  const val = newMasa.trim();
+                  let nums = [];
+                  if(val.includes("-")){
+                    const [a,b] = val.split("-").map(s=>parseInt(s.trim()));
+                    if(a>0&&b>=a&&b-a<500) for(let i=a;i<=b;i++) nums.push(i);
+                  } else { const n=parseInt(val); if(n>0) nums.push(n); }
+                  const mevcutlar = new Set(tables.map(t=>parseInt(t.masa_no)));
+                  const eklenecek = nums.filter(n=>!mevcutlar.has(n));
+                  for(const n of eklenecek) await post("panel.php",{action:"table_add",masa_no:n});
+                  setNewMasa(""); fetchAll();
+                }} style={{padding:"9px 16px",background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:"#0b0704",cursor:"pointer",fontFamily:"var(--fh)",fontSize:13,fontWeight:600,whiteSpace:"nowrap"}}>+ Ekle</button>
+              </div>
             )}
-            {active.map(s => {
-              const sOrds = orders.filter(o => String(o.session_id) === String(s.id));
-              const total = sOrds.reduce((a, o) => a + (o.toplam || 0), 0);
-              const hasNew = sOrds.some(o => o.status === "yeni");
-              return (
-                <div key={s.id} style={{ padding:"10px 12px", background:"var(--surf2)", border:`1px solid ${hasNew?"rgba(192,64,64,.5)":"rgba(58,138,92,.3)"}`, borderRadius:12, marginBottom:10, animation:hasNew?"blink 2s ease-in-out infinite":"none" }}>
-                  {/* Masa başlık — kompakt */}
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                      <span style={{ fontFamily:"var(--fh)", fontSize:15, color:"var(--cream)" }}>Masa {s.masa_no}</span>
-                      <span style={{ fontSize:11, color:"var(--muted)" }}>⏱ {elapsed(s.created_at)}</span>
-                    </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      {isOwner && <span style={{ fontFamily:"var(--fh)", fontSize:14, color:"var(--gsoft)" }}>{total}₺</span>}
-                      {/* Aksiyon butonları — ikona indirge */}
-                      <button onClick={()=>{ setGarsonOrder(s); setGarsonCart([]); }} title="Sipariş Ekle" style={{ width:28, height:28, borderRadius:7, background:"rgba(58,138,92,.15)", border:"1px solid rgba(58,138,92,.4)", color:"#3aaa6a", cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
-                      {isOwner && <button onClick={()=>sClose(s.id)} title="Hesap Ödendi — Kapat" style={{ width:28, height:28, borderRadius:7, background:"rgba(201,145,58,.15)", border:"1px solid rgba(201,145,58,.4)", color:"var(--gsoft)", cursor:"pointer", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>}
-                      {isOwner && <button onClick={()=>sAct(s.id,"askida")} title="Engelle" style={{ width:28, height:28, borderRadius:7, background:"rgba(192,64,64,.15)", border:"1px solid rgba(192,64,64,.3)", color:"#e06060", cursor:"pointer", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>}
-                    </div>
+
+            {/* Masa grid — aktif + boş masalar */}
+            {tables.length === 0 && active.length === 0 && (
+              <div style={{textAlign:"center",color:"var(--muted)",marginTop:60}}>
+                <div style={{fontSize:36}}>🪑</div>
+                <div style={{marginTop:12,fontSize:14,fontStyle:"italic"}}>Henüz masa eklenmedi</div>
+              </div>
+            )}
+
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
+              {tables.sort((a,b)=>a.masa_no-b.masa_no).map(t=>{
+                const ses   = active.find(s=>parseInt(s.masa_no)===parseInt(t.masa_no));
+                const sOrds = ses ? orders.filter(o=>String(o.session_id)===String(ses.id)) : [];
+                const total = sOrds.reduce((a,o)=>a+(o.toplam||0),0);
+                const hasNew= sOrds.some(o=>o.status==="yeni");
+                const dolu  = !!ses;
+                const url   = `${import.meta.env.VITE_APP_URL||window.location.origin}?qr=${t.qr_token}`;
+                return (
+                  <div key={t.id}
+                    onClick={()=>setMasaPopup({table:t, session:ses, orders:sOrds, total, url})}
+                    style={{
+                      background: dolu ? "var(--surf2)" : "var(--surf)",
+                      border:`1px solid ${hasNew?"rgba(192,64,64,.6)":dolu?"rgba(58,138,92,.4)":"var(--bord)"}`,
+                      borderRadius:12, padding:"10px 8px", textAlign:"center", cursor:"pointer",
+                      animation: hasNew?"blink 2s ease-in-out infinite":"none",
+                      transition:"transform .15s, box-shadow .15s",
+                      position:"relative",
+                    }}
+                    onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.03)";e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,.3)";}}
+                    onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="none";}}
+                  >
+                    <div style={{fontFamily:"var(--fh)",fontSize:17,color:"var(--cream)",marginBottom:3}}>{t.masa_no}</div>
+                    {dolu ? (
+                      <>
+                        <div style={{fontSize:10,color:"#3aaa6a",marginBottom:3}}>● Dolu</div>
+                        {isOwner && total>0 && <div style={{fontFamily:"var(--fh)",fontSize:12,color:"var(--gsoft)"}}>{total}₺</div>}
+                        {sOrds.length>0 && <div style={{fontSize:10,color:"var(--muted)",marginTop:2}}>{sOrds.length} sipariş</div>}
+                      </>
+                    ) : (
+                      <div style={{fontSize:10,color:"var(--muted)"}}>Boş</div>
+                    )}
+                    {/* Küçük sil butonu — sağ üst köşe */}
+                    {isOwner && (
+                      <button
+                        onClick={e=>{e.stopPropagation(); if(window.confirm(`Masa ${t.masa_no} silinsin mi?`)) post("panel.php",{action:"table_del",id:t.id}).then(fetchAll);}}
+                        title="Masayı Sil"
+                        style={{position:"absolute",top:4,right:4,width:16,height:16,borderRadius:4,background:"rgba(192,64,64,.2)",border:"none",color:"rgba(224,96,96,.6)",cursor:"pointer",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}
+                      >✕</button>
+                    )}
                   </div>
-                  {/* Siparişler — kompakt */}
-                  {sOrds.length === 0
-                    ? <div style={{ fontSize:12, color:"var(--muted)", fontStyle:"italic" }}>Henüz sipariş yok</div>
-                    : sOrds.map(o => (
-                      <div key={o.id} style={{ padding:"6px 9px", background:"var(--surf)", borderRadius:8, marginBottom:5, border:`1px solid ${o.status==="yeni"?"rgba(192,64,64,.35)":o.status==="hazırlanıyor"?"rgba(201,145,58,.25)":"rgba(58,138,92,.25)"}` }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                          <div style={{ flex:1 }}>
-                            {(o.urunler||[]).map((u,i)=>(
-                              <span key={i} style={{ fontSize:12, color:"var(--cream)" }}>
-                                {i>0 && <span style={{color:"var(--muted)"}}>, </span>}
-                                <strong style={{color:"var(--gsoft)"}}>{u.adet}×</strong> {u.ad}{o.notlar?.includes("[Garson]")?" 👨‍🍳":""}
-                              </span>
-                            ))}
-                          </div>
-                          <div style={{ display:"flex", alignItems:"center", gap:6, marginLeft:8, flexShrink:0 }}>
-                            <span style={{ fontSize:10, padding:"2px 7px", borderRadius:20, fontWeight:600, background:o.status==="yeni"?"rgba(192,64,64,.2)":o.status==="hazırlanıyor"?"rgba(201,145,58,.2)":"rgba(58,138,92,.2)", color:o.status==="yeni"?"#e06060":o.status==="hazırlanıyor"?"var(--gsoft)":"#3aaa6a", whiteSpace:"nowrap" }}>{o.status}</span>
-                            {o.status==="yeni"         && <button onClick={()=>oAct(o.id,"hazırlanıyor")} title="Hazırlıyorum" style={{width:24,height:24,borderRadius:6,background:"rgba(201,145,58,.2)",border:"1px solid rgba(201,145,58,.4)",color:"var(--gsoft)",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>🔥</button>}
-                            {o.status==="hazırlanıyor" && <button onClick={()=>oAct(o.id,"hazır")} title="Servis Et" style={{width:24,height:24,borderRadius:6,background:"rgba(58,138,92,.2)",border:"1px solid rgba(58,138,92,.4)",color:"#3aaa6a",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>✅</button>}
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  }
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
 
             {/* Eşleşmeyen siparişler */}
             {(() => {
-              const shown = new Set(active.flatMap(s => orders.filter(o => String(o.session_id) === String(s.id)).map(o => o.id)));
-              const orphans = orders.filter(o => !shown.has(o.id) && o.status !== "hazır");
-              if (!orphans.length) return null;
+              const shown = new Set(tables.flatMap(t=>{
+                const ses = active.find(s=>parseInt(s.masa_no)===parseInt(t.masa_no));
+                return ses ? orders.filter(o=>String(o.session_id)===String(ses.id)).map(o=>o.id) : [];
+              }));
+              const orphans = orders.filter(o=>!shown.has(o.id)&&o.status!=="hazır");
+              if(!orphans.length) return null;
               return <>
-                <div style={{ fontFamily: "var(--fh)", fontSize: 12, color: "var(--muted)", marginBottom: 9, letterSpacing: 1, marginTop: 16 }}>DİĞER SİPARİŞLER</div>
-                {orphans.map(o => (
-                  <div key={o.id} style={{ ...card({ border: `1px solid ${o.status === "yeni" ? "rgba(192,64,64,.45)" : "rgba(201,145,58,.38)"}` }) }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                      <span style={{ fontFamily: "var(--fh)", fontSize: 14, color: "var(--cream)" }}>Masa {o.masa_no}</span>
-                      <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, fontWeight: 600, background: o.status === "yeni" ? "rgba(192,64,64,.2)" : "rgba(201,145,58,.2)", color: o.status === "yeni" ? "#e06060" : "var(--gsoft)" }}>{o.status}</span>
+                <div style={{fontFamily:"var(--fh)",fontSize:11,color:"var(--muted)",marginBottom:8,letterSpacing:1}}>DİĞER SİPARİŞLER</div>
+                {orphans.map(o=>(
+                  <div key={o.id} style={{...card({border:`1px solid ${o.status==="yeni"?"rgba(192,64,64,.45)":"rgba(201,145,58,.38)"}`})}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                      <span style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--cream)"}}>Masa {o.masa_no}</span>
+                      <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:o.status==="yeni"?"rgba(192,64,64,.2)":"rgba(201,145,58,.2)",color:o.status==="yeni"?"#e06060":"var(--gsoft)"}}>{o.status}</span>
                     </div>
-                    {(o.urunler || []).map((u, i) => <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--cream)", padding: "2px 0" }}><span>{u.adet}× {u.ad}</span><span style={{ color: "var(--muted)" }}>{u.adet * u.fiyat}₺</span></div>)}
-                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 7, marginTop: 8 }}>
-                      {o.status === "yeni"         && AB("🔥 Hazırlıyorum", () => oAct(o.id, "hazırlanıyor"), "201,145,58")}
-                      {o.status === "hazırlanıyor" && AB("✅ Servis Et",    () => oAct(o.id, "hazır"),        "58,138,92")}
+                    {(o.urunler||[]).map((u,i)=><div key={i} style={{fontSize:12,color:"var(--cream)"}}>{u.adet}× {u.ad}</div>)}
+                    <div style={{display:"flex",justifyContent:"flex-end",gap:6,marginTop:7}}>
+                      {o.status==="yeni"         && AB("🔥",()=>oAct(o.id,"hazırlanıyor"),"201,145,58")}
+                      {o.status==="hazırlanıyor" && AB("✅",()=>oAct(o.id,"hazır"),"58,138,92")}
                     </div>
                   </div>
                 ))}
@@ -1260,7 +1292,7 @@ const StaffPanel = ({ staff, onLogout }) => {
           <>
             {/* Alt sekmeler */}
             <div style={{ display:"flex", gap:0, marginBottom:16, background:"var(--surf2)", borderRadius:12, padding:3 }}>
-              {[["ozet","📊 Özet"],["masalar","🪑 Masalar"],["menu","📋 Menü"]].map(([id,label]) => (
+              {[["ozet","📊 Özet"],["menu","📋 Menü"]].map(([id,label]) => (
                 <button key={id} onClick={()=>setYTab(id)} style={{ flex:1, padding:"9px 6px", background:yTab===id?"var(--surf)":"transparent", border:"none", borderRadius:10, cursor:"pointer", fontSize:12.5, color:yTab===id?"var(--gsoft)":"var(--muted)", fontWeight:yTab===id?600:400, transition:"all .2s" }}>{label}</button>
               ))}
             </div>
@@ -1292,58 +1324,6 @@ const StaffPanel = ({ staff, onLogout }) => {
                 <ChangePassInline />
               </div>
             </>}
-
-            {/* ── MASALAR ── */}
-            {yTab === "masalar" && <>
-              {/* Toplu masa ekleme */}
-              <div style={{...card({border:"1px solid var(--gdim)",marginBottom:14})}}>
-                <div style={{fontSize:13,color:"var(--muted)",marginBottom:10,fontFamily:"var(--fh)"}}>Tek numara (5) veya aralık (1-50) — zaten olan masalar atlanır</div>
-                <div style={{display:"flex",gap:8}}>
-                  <input type="text" value={newMasa} onChange={e=>setNewMasa(e.target.value)} placeholder="5 veya 1-50"
-                    style={{flex:1,background:"var(--surf)",border:"1px solid var(--bord)",borderRadius:9,padding:"10px 13px",color:"var(--cream)",fontSize:14,outline:"none"}}
-                    onKeyDown={e=>{ if(e.key==="Enter") e.currentTarget.nextSibling.click(); }}
-                  />
-                  <button onClick={async()=>{
-                    if(!newMasa.trim()) return;
-                    const val = newMasa.trim();
-                    let nums = [];
-                    if(val.includes("-")) {
-                      const parts = val.split("-").map(s=>parseInt(s.trim()));
-                      const [a,b] = parts;
-                      if(a>0&&b>=a&&b-a<500) for(let i=a;i<=b;i++) nums.push(i);
-                    } else {
-                      const n = parseInt(val);
-                      if(n>0) nums.push(n);
-                    }
-                    // Mevcut masa numaraları
-                    const mevcutlar = new Set(tables.map(t=>parseInt(t.masa_no)));
-                    const eklenecek = nums.filter(n=>!mevcutlar.has(n));
-                    for(const n of eklenecek) await post("panel.php",{action:"table_add",masa_no:n});
-                    setNewMasa(""); fetchAll();
-                  }} style={{padding:"10px 18px",background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:9,color:"#0b0704",cursor:"pointer",fontFamily:"var(--fh)",fontSize:14,fontWeight:600,whiteSpace:"nowrap"}}>+ Ekle</button>
-                </div>
-              </div>
-
-              {/* Masa grid */}
-              {tables.length === 0
-                ? <div style={{textAlign:"center",color:"var(--muted)",marginTop:30,fontStyle:"italic"}}>Henüz masa eklenmedi</div>
-                : <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
-                    {tables.sort((a,b)=>a.masa_no-b.masa_no).map(t=>{
-                      const url = `${import.meta.env.VITE_APP_URL||window.location.origin}?qr=${t.qr_token}`;
-                      return (
-                        <div key={t.id} style={{background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12,padding:"10px 8px",textAlign:"center"}}>
-                          <div style={{fontFamily:"var(--fh)",fontSize:18,color:"var(--cream)",marginBottom:6}}>{t.masa_no}</div>
-                          <div style={{display:"flex",gap:5,justifyContent:"center"}}>
-                            <button onClick={()=>setQrModal({masa_no:t.masa_no,url})} style={{flex:1,background:"rgba(201,145,58,.15)",border:"1px solid rgba(201,145,58,.35)",borderRadius:7,padding:"4px 0",color:"var(--gold)",cursor:"pointer",fontSize:11}}>QR</button>
-                            <button onClick={()=>post("panel.php",{action:"table_del",id:t.id}).then(fetchAll)} style={{width:26,background:"rgba(192,64,64,.15)",border:"1px solid rgba(192,64,64,.3)",borderRadius:7,color:"#e06060",cursor:"pointer",fontSize:13}}>✕</button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-              }
-            </>}
-
             {/* ── MENÜ ── */}
             {yTab === "menu" && (
               <MenuManager venueId={vid} />
@@ -1351,6 +1331,64 @@ const StaffPanel = ({ staff, onLogout }) => {
           </>
         )}
       </div>
+
+
+      {/* ── MASA DETAY POPUP ── */}
+      {masaPopup && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:300,backdropFilter:"blur(4px)"}} onClick={()=>setMasaPopup(null)}>
+          <div style={{width:"100%",maxWidth:525,background:"var(--surf)",borderRadius:"22px 22px 0 0",padding:"20px 18px 36px",maxHeight:"80vh",display:"flex",flexDirection:"column",animation:"fadeUp .3s ease-out"}} onClick={e=>e.stopPropagation()}>
+            {/* Başlık */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexShrink:0}}>
+              <div>
+                <div style={{fontFamily:"var(--fh)",fontSize:19,color:"var(--cream)"}}>Masa {masaPopup.table.masa_no}</div>
+                <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>
+                  {masaPopup.session ? `● Dolu · ⏱ ${elapsed(masaPopup.session.created_at)}` : "○ Boş"}
+                  {isOwner && masaPopup.total > 0 && ` · ${masaPopup.total}₺`}
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                {/* QR butonu */}
+                <button onClick={()=>{setQrModal({masa_no:masaPopup.table.masa_no,url:masaPopup.url});setMasaPopup(null);}} style={{padding:"7px 14px",background:"rgba(201,145,58,.15)",border:"1px solid rgba(201,145,58,.4)",borderRadius:9,color:"var(--gsoft)",cursor:"pointer",fontSize:13}}>🔲 QR</button>
+                <button onClick={()=>setMasaPopup(null)} style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:22}}>✕</button>
+              </div>
+            </div>
+
+            {/* Siparişler */}
+            <div style={{flex:1,overflowY:"auto"}}>
+              {!masaPopup.session ? (
+                <div style={{textAlign:"center",color:"var(--muted)",marginTop:30,fontStyle:"italic"}}>Bu masa boş</div>
+              ) : masaPopup.orders.length === 0 ? (
+                <div style={{textAlign:"center",color:"var(--muted)",marginTop:30,fontStyle:"italic"}}>Henüz sipariş yok</div>
+              ) : masaPopup.orders.map(o=>(
+                <div key={o.id} style={{padding:"9px 11px",background:"var(--surf2)",borderRadius:10,marginBottom:8,border:`1px solid ${o.status==="yeni"?"rgba(192,64,64,.4)":o.status==="hazırlanıyor"?"rgba(201,145,58,.3)":"rgba(58,138,92,.3)"}`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                    <span style={{fontSize:11,color:"var(--muted)"}}>🕐 {o.created_at?.slice(11,16)}</span>
+                    <span style={{fontSize:11,padding:"2px 8px",borderRadius:20,fontWeight:600,background:o.status==="yeni"?"rgba(192,64,64,.2)":o.status==="hazırlanıyor"?"rgba(201,145,58,.2)":"rgba(58,138,92,.2)",color:o.status==="yeni"?"#e06060":o.status==="hazırlanıyor"?"var(--gsoft)":"#3aaa6a"}}>{o.status}</span>
+                  </div>
+                  {(o.urunler||[]).map((u,i)=>(
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"var(--cream)",padding:"2px 0"}}>
+                      <span><strong style={{color:"var(--gsoft)"}}>{u.adet}×</strong> {u.ad}{o.notlar?.includes("[Garson]")?" 👨‍🍳":""}</span>
+                      <span style={{color:"var(--muted)"}}>{u.adet*u.fiyat}₺</span>
+                    </div>
+                  ))}
+                  <div style={{display:"flex",justifyContent:"flex-end",gap:6,marginTop:7}}>
+                    {o.status==="yeni"         && <button onClick={()=>{oAct(o.id,"hazırlanıyor");setMasaPopup(null);}} style={{padding:"5px 12px",background:"rgba(201,145,58,.2)",border:"1px solid rgba(201,145,58,.4)",borderRadius:8,color:"var(--gsoft)",cursor:"pointer",fontSize:12}}>🔥 Hazırlıyorum</button>}
+                    {o.status==="hazırlanıyor" && <button onClick={()=>{oAct(o.id,"hazır");setMasaPopup(null);}} style={{padding:"5px 12px",background:"rgba(58,138,92,.2)",border:"1px solid rgba(58,138,92,.4)",borderRadius:8,color:"#3aaa6a",cursor:"pointer",fontSize:12}}>✅ Servis Et</button>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Alt aksiyonlar */}
+            {masaPopup.session && (
+              <div style={{display:"flex",gap:8,marginTop:14,flexShrink:0}}>
+                <button onClick={()=>{setGarsonOrder(masaPopup.session);setGarsonCart([]);setMasaPopup(null);}} style={{flex:1,padding:"11px",background:"rgba(58,138,92,.15)",border:"1px solid rgba(58,138,92,.4)",borderRadius:11,color:"#3aaa6a",cursor:"pointer",fontFamily:"var(--fh)",fontSize:14}}>➕ Sipariş Ekle</button>
+                {isOwner && <button onClick={()=>{sClose(masaPopup.session.id);setMasaPopup(null);}} style={{flex:1,padding:"11px",background:"rgba(201,145,58,.15)",border:"1px solid rgba(201,145,58,.4)",borderRadius:11,color:"var(--gsoft)",cursor:"pointer",fontFamily:"var(--fh)",fontSize:14}}>✓ Hesap Ödendi</button>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Garson sipariş popup */}
       {garsonOrder && (
