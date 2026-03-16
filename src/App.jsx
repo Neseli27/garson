@@ -409,11 +409,8 @@ const CustomerChat = ({ session, venueAd }) => {
       const reply = r.content?.[0]?.text || "Bir sorun oluştu.";
       convRef.current = [...convRef.current, { role: "assistant", content: reply }];
       setMsgs(p => [...p, { role: "assistant", content: reply, id: Date.now(), time: ts() }]);
-      const order = parseOrder(reply);
-      if (order) {
-        await post("order.php", { action: "create", session_id: session.id, venue_id: session.venue_id, masa_no: session.masa_no, urunler: order.urunler, toplam: order.toplam, not: order.not || "" });
-        playBeep(880, .3, 2);
-      }
+      // Sipariş chat.php tarafında DB'ye kaydedildi — burada tekrar kaydetme
+      if (parseOrder(reply)) playBeep(880, .3, 2);
       speak(reply);
     } catch { setMsgs(p => [...p, { role: "assistant", content: "Bağlantı sorunu, tekrar deneyin.", id: Date.now(), time: ts() }]); }
     setLoading(false);
