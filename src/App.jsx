@@ -971,7 +971,19 @@ const MenuManager = ({ venueId }) => {
               : cats.map(cat => (
                 <div key={cat} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",marginBottom:8,background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12}}>
                   <span style={{fontFamily:"var(--fh)",fontSize:15,color:"var(--cream)"}}>{cat}</span>
-                  <span style={{fontSize:12,color:"var(--muted)"}}>{items.filter(i=>i.cat===cat).length} ürün</span>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <span style={{fontSize:12,color:"var(--muted)"}}>{items.filter(i=>i.cat===cat).length} ürün</span>
+                    <button onClick={async()=>{
+                      const n = items.filter(i=>i.cat===cat).length;
+                      const msg = n > 0
+                        ? `"${cat}" kategorisi ve içindeki ${n} ürün silinecek. Emin misiniz?`
+                        : `"${cat}" kategorisi silinsin mi?`;
+                      if(!window.confirm(msg)) return;
+                      const r = await apicall("cat_del", {kategori: cat});
+                      if(r.ok){ setCats(p=>p.filter(x=>x!==cat)); setItems(p=>p.filter(i=>i.cat!==cat)); flash("🗑 Kategori silindi"); }
+                      else flash("❌ " + (r.error||"Hata"));
+                    }} style={{width:26,height:26,borderRadius:7,background:"rgba(192,64,64,.15)",border:"1px solid rgba(192,64,64,.3)",color:"#e06060",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+                  </div>
                 </div>
               ))
             }
