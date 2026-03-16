@@ -1848,19 +1848,27 @@ const StaffPanel = ({ staff, onLogout }) => {
    ROOT
 ══════════════════════════════════════════════════════════ */
 export default function App() {
-  const params    = new URLSearchParams(window.location.search);
-  const qrToken   = params.get("qr");
-  const isCustomer = !!qrToken;
+  const params = new URLSearchParams(window.location.search);
+  
+  // QR token: URL'den al veya localStorage'dan geri yükle
+  const urlQr = params.get("qr");
+  if (urlQr) {
+    localStorage.setItem("sg_qr_token", urlQr); // PWA için sakla
+  }
+  const qrToken   = urlQr || localStorage.getItem("sg_qr_token") || null;
+  const isCustomer = !!qrToken && !localStorage.getItem("sg_token"); // personel girişi varsa müşteri değil
 
   // Staff auth state
-  const [staff, setStaff]     = useState(() => { try { return JSON.parse(localStorage.getItem("sg_staff")); } catch { return null; } });
+  const [staff, setStaff] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sg_staff")); } catch { return null; }
+  });
 
   // Customer state
-  const [qrInfo, setQrInfo]         = useState(null);   // {venue_id, venue_ad, masa_no, table_id}
-  const [session, setSession]       = useState(null);
+  const [qrInfo, setQrInfo]               = useState(null);
+  const [session, setSession]             = useState(null);
   const [sessionStatus, setSessionStatus] = useState(null);
-  const [qrLoading, setQrLoading]   = useState(isCustomer);
-  const [qrError, setQrError]       = useState("");
+  const [qrLoading, setQrLoading]         = useState(isCustomer);
+  const [qrError, setQrError]             = useState("");
 
   // QR yükle
   useEffect(() => {
@@ -1910,11 +1918,16 @@ export default function App() {
     if (!session) return;
     const poll = async () => {
       const r = await get(`session.php?id=${session.id}`);
-      if (r.error) { localStorage.removeItem(`sg_ses_${qrInfo?.table_id}`); setSession(null); setSessionStatus(null); return; }
+      if (r.error) { localStorage.removeItem(`sg_ses_${qrInfo?.table_id}`); localStorage.removeItem('sg_qr_token'); setSession(null); setSessionStatus(null); return; }
       if (r.session?.durum !== sessionStatus) {
         setSessionStatus(r.session.durum);
         setSession(r.session);
         if (r.session.durum === "aktif") playBeep(660, .3, 2);
+        if (r.session.durum === "askida") {
+          // Hesap ödendi / oturum kapandı — QR temizle
+          localStorage.removeItem("sg_qr_token");
+          localStorage.removeItem(`sg_ses_${qrInfo?.table_id}`);
+        }
       }
     };
     const i = setInterval(poll, 3000);
