@@ -424,11 +424,10 @@ const CustomerChat = ({ session, venueAd }) => {
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)", overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ padding: "11px 14px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid var(--bord)", background: "rgba(22,14,8,.95)", flexShrink: 0 }}>
-        <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg,var(--gold) 0%,#6b3d10 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>🍽️</div>
+      <div style={{ padding: "7px 12px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid var(--bord)", background: "rgba(22,14,8,.95)", flexShrink: 0 }}>
+        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--gold) 0%,#6b3d10 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>🍽️</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "var(--fh)", fontSize: 15, color: "var(--cream)" }}>Garson AI</div>
-          <div style={{ fontSize: 11, color: "var(--muted)", fontStyle: "italic" }}>{venueAd} — Masa {session.masa_no}</div>
+          <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--cream)", lineHeight:1 }}>Garson AI <span style={{fontSize:11,color:"var(--muted)",fontStyle:"italic"}}>{venueAd} · Masa {session.masa_no}</span></div>
         </div>
         {speaking && (
           <button onClick={() => { window.speechSynthesis.cancel(); setSpeaking(false); }} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(192,64,64,.18)", border: "1px solid rgba(192,64,64,.4)", borderRadius: 20, padding: "5px 10px", cursor: "pointer", color: "#e06060", fontSize: 12 }}>
@@ -440,16 +439,16 @@ const CustomerChat = ({ session, venueAd }) => {
       {/* Tabs */}
       <div style={{ display: "flex", borderBottom: "1px solid var(--bord)", background: "rgba(22,14,8,.9)", flexShrink: 0 }}>
         {[{ id: "chat", label: "💬 Garson" }, { id: "menu", label: `📋 Menü${cartCount > 0 ? ` (${cartCount})` : ""}` }, { id: "hesap", label: `🧾 Hesap${tableOrders.length > 0 ? " ●" : ""}` }].map(({ id, label }) => (
-          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "10px 0", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--fb,inherit)", fontSize: 13, color: tab === id ? "var(--gsoft)" : "var(--muted)", borderBottom: tab === id ? "2px solid var(--gold)" : "2px solid transparent", transition: "all .2s" }}>{label}</button>
+          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "7px 0", background: "none", border: "none", cursor: "pointer", fontSize: 12, color: tab === id ? "var(--gsoft)" : "var(--muted)", borderBottom: tab === id ? "2px solid var(--gold)" : "2px solid transparent", transition: "all .2s" }}>{label}</button>
         ))}
       </div>
 
-      <div style={{ flex: 1, overflow: "hidden" }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
         {tab === "menu" && <MenuView menu={menu} specials={specials} cart={cart} onAdd={addToCart} onRemove={removeFromCart} onOrder={submitCart} orderLoading={orderLoading} />}
         {tab === "hesap" && <HesapView session={session} tableOrders={tableOrders} venueId={session.venue_id} onCallWaiter={callWaiter} />}
         {tab === "chat" && (
           <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-            <div style={{ flex: 1, overflowY: "auto", padding: "14px 13px 8px" }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 13px 8px" }}>
               {msgs.map((m, i) => {
                 const isUser = m.role === "user";
                 const content = cleanText(m.content);
@@ -487,7 +486,7 @@ const CustomerChat = ({ session, venueAd }) => {
                 <button key={s} onClick={() => send(s)} style={{ background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 20, padding: "5px 12px", color: "var(--muted)", cursor: "pointer", fontSize: 12, whiteSpace: "nowrap", flexShrink: 0 }}>{s}</button>
               ))}
             </div>
-            <div style={{ padding: "9px 12px 16px", borderTop: "1px solid var(--bord)", background: "rgba(22,14,8,.95)", flexShrink: 0 }}>
+            <div style={{ padding: "6px 10px 10px", borderTop: "1px solid var(--bord)", background: "rgba(22,14,8,.95)", flexShrink: 0 }}>
               <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
                 <textarea ref={taRef} value={input} onChange={e => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 100) + "px"; }} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }} placeholder={listening ? "Dinliyorum..." : "Yazın veya mikrofona basın..."} rows={1} disabled={loading}
                   style={{ flex: 1, resize: "none", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 13, padding: "11px 14px", color: "var(--cream)", fontSize: 15, outline: "none", lineHeight: 1.4, minHeight: 44 }} />
@@ -1348,6 +1347,7 @@ const StaffPanel = ({ staff, onLogout }) => {
   const [garsonCart, setGarsonCart]   = useState([]);
   const [garsonLoading, setGarsonLoading] = useState(false);
   const [masaPopup, setMasaPopup] = useState(null); // popup için seçili masa/oturum
+  const [mergeMode, setMergeMode]   = useState(false); // masa birleştirme modu
   const [newMasa, setNewMasa] = useState(""); // masa ekleme input
   const [yTab, setYTab]       = useState("ozet"); // yönetim alt sekme
   const [newItem, setNewItem]   = useState({ cat: "", name: "", price: "", desc: "", wait: "" });
@@ -1746,9 +1746,33 @@ const StaffPanel = ({ staff, onLogout }) => {
 
             {/* Alt aksiyonlar */}
             {masaPopup.session && (
-              <div style={{display:"flex",gap:8,marginTop:14,flexShrink:0}}>
-                <button onClick={()=>{setGarsonOrder(masaPopup.session);setGarsonCart([]);setMasaPopup(null);}} style={{flex:1,padding:"11px",background:"rgba(58,138,92,.15)",border:"1px solid rgba(58,138,92,.4)",borderRadius:11,color:"#3aaa6a",cursor:"pointer",fontFamily:"var(--fh)",fontSize:14}}>➕ Sipariş Ekle</button>
-                {isOwner && <button onClick={()=>{sClose(masaPopup.session.id);setMasaPopup(null);}} style={{flex:1,padding:"11px",background:"rgba(201,145,58,.15)",border:"1px solid rgba(201,145,58,.4)",borderRadius:11,color:"var(--gsoft)",cursor:"pointer",fontFamily:"var(--fh)",fontSize:14}}>✓ Hesap Ödendi</button>}
+              <div style={{marginTop:14,flexShrink:0}}>
+                <div style={{display:"flex",gap:8,marginBottom:8}}>
+                  <button onClick={()=>{setGarsonOrder(masaPopup.session);setGarsonCart([]);setMasaPopup(null);}} style={{flex:1,padding:"11px",background:"rgba(58,138,92,.15)",border:"1px solid rgba(58,138,92,.4)",borderRadius:11,color:"#3aaa6a",cursor:"pointer",fontFamily:"var(--fh)",fontSize:13}}>➕ Sipariş Ekle</button>
+                  {isOwner && <button onClick={()=>{sClose(masaPopup.session.id);setMasaPopup(null);}} style={{flex:1,padding:"11px",background:"rgba(201,145,58,.15)",border:"1px solid rgba(201,145,58,.4)",borderRadius:11,color:"var(--gsoft)",cursor:"pointer",fontFamily:"var(--fh)",fontSize:13}}>✓ Hesap Ödendi</button>}
+                </div>
+                {isOwner && (
+                  <button onClick={()=>{
+                    const hedef = window.prompt(`Masa ${masaPopup.table.masa_no} siparişlerini hangi masaya taşıyalım? (Masa numarası girin)`);
+                    if (!hedef) return;
+                    const hedefMasa = parseInt(hedef);
+                    const hedefSes = sessions.find(s=>s.durum==="aktif"&&parseInt(s.masa_no)===hedefMasa);
+                    if (!hedefSes) { alert(`Masa ${hedefMasa} aktif değil veya bulunamadı.`); return; }
+                    if (!window.confirm(`Masa ${masaPopup.table.masa_no} → Masa ${hedefMasa} birleştirilsin mi?`)) return;
+                    // Siparişleri hedef session'a taşı
+                    Promise.all(
+                      masaPopup.orders.map(o =>
+                        post("order.php", { action: "move", id: o.id, to_session: hedefSes.id, to_masa: hedefSes.masa_no })
+                      )
+                    ).then(() => {
+                      sClose(masaPopup.session.id);
+                      setMasaPopup(null);
+                      fetchAll();
+                    });
+                  }} style={{width:"100%",padding:"9px",background:"rgba(58,106,154,.12)",border:"1px solid rgba(58,106,154,.35)",borderRadius:11,color:"#6aaae0",cursor:"pointer",fontFamily:"var(--fh)",fontSize:13}}>
+                    🔀 Masa Birleştir / Taşı
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1843,14 +1867,27 @@ export default function App() {
     if (!isCustomer) return;
     get(`session.php?qr=${qrToken}`).then(r => {
       if (r.error) { setQrError("Geçersiz veya süresi dolmuş QR kodu."); setQrLoading(false); return; }
-      setQrInfo({ venue_id: r.venue_id, venue_ad: r.venue_ad, masa_no: r.masa_no, table_id: r.table_id });
+      const info = { venue_id: r.venue_id, venue_ad: r.venue_ad, masa_no: r.masa_no, table_id: r.table_id };
+      setQrInfo(info);
 
-      // Mevcut oturum var mı?
+      // Backend'den gelen aktif oturum varsa onu kullan (QR tekrar okutma koruması)
+      if (r.session && r.session.id) {
+        setSession(r.session);
+        setSessionStatus(r.session.durum);
+        localStorage.setItem(`sg_ses_${r.table_id}`, r.session.id);
+        setQrLoading(false);
+        return;
+      }
+
+      // Yoksa localStorage'a bak
       const savedId = localStorage.getItem(`sg_ses_${r.table_id}`);
       if (savedId) {
         get(`session.php?id=${savedId}`).then(r2 => {
-          if (r2.session) { setSession(r2.session); setSessionStatus(r2.session.durum); }
-          else localStorage.removeItem(`sg_ses_${r.table_id}`);
+          if (r2.session && r2.session.durum !== "askida") {
+            setSession(r2.session); setSessionStatus(r2.session.durum);
+          } else {
+            localStorage.removeItem(`sg_ses_${r.table_id}`);
+          }
           setQrLoading(false);
         });
       } else setQrLoading(false);
