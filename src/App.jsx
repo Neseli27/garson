@@ -126,23 +126,59 @@ const StaffLogin = ({ onLogin }) => {
 /* ══════════════════════════════════════════════════════════
    CUSTOMER: WAITING
 ══════════════════════════════════════════════════════════ */
-const WaitingScreen = ({ venueAd, masaNo }) => (
-  <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 28 }}>
-    <div style={{ position: "relative", width: 90, height: 90, marginBottom: 24 }}>
-      {[0, 1, 2].map(i => <div key={i} style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid rgba(201,145,58,.4)", animation: `spin ${2 + i * .5}s linear infinite`, transform: `scale(${1 + i * .2})` }} />)}
-      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34 }}>⏳</div>
+const WaitingScreen = ({ venueAd, masaNo, gorsel }) => (
+  <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"var(--bg)", padding:28, textAlign:"center" }}>
+
+    {/* İşletmenin açılış görseli */}
+    {gorsel ? (
+      <div style={{ width:"100%", maxWidth:360, marginBottom:24, borderRadius:22, overflow:"hidden", border:"2px solid var(--gold)", boxShadow:"0 0 40px rgba(201,145,58,.25)", animation:"fadeIn .6s ease-out" }}>
+        <img src={gorsel} alt={venueAd} style={{ width:"100%", display:"block", maxHeight:260, objectFit:"cover" }} />
+      </div>
+    ) : (
+      <div style={{ position:"relative", width:90, height:90, marginBottom:24 }}>
+        {[0,1,2].map(i=><div key={i} style={{ position:"absolute", inset:0, borderRadius:"50%", border:"2px solid rgba(201,145,58,.4)", animation:`spin ${2+i*.5}s linear infinite`, transform:`scale(${1+i*.2})` }} />)}
+        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:34 }}>⏳</div>
+      </div>
+    )}
+
+    <div style={{ fontFamily:"var(--fh)", fontSize:22, color:"var(--cream)", marginBottom:8 }}>
+      {venueAd ? `${venueAd}'e Hoş Geldiniz!` : "Hoş Geldiniz!"}
     </div>
-    <div style={{ fontFamily: "var(--fh)", fontSize: 22, color: "var(--cream)", marginBottom: 8, textAlign: "center" }}>Onay Bekleniyor</div>
-    <div style={{ fontSize: 14, color: "var(--muted)", fontStyle: "italic", textAlign: "center", lineHeight: 1.7, marginBottom: 24 }}>
-      <strong style={{ color: "var(--gsoft)" }}>{venueAd}</strong>'e hoş geldiniz.<br />Garsonumuz sizi görecek.
+    <div style={{ fontSize:14, color:"var(--muted)", fontStyle:"italic", lineHeight:1.7, marginBottom:24 }}>
+      Garsonumuz sizi onaylayacak.
     </div>
-    <div style={{ padding: "14px 28px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 16, textAlign: "center" }}>
-      <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>MASA</div>
-      <div style={{ fontFamily: "var(--fh)", fontSize: 32, color: "var(--gsoft)" }}>{masaNo}</div>
+    <div style={{ padding:"14px 32px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:16 }}>
+      <div style={{ fontSize:11, color:"var(--muted)", marginBottom:4 }}>MASA</div>
+      <div style={{ fontFamily:"var(--fh)", fontSize:36, color:"var(--gsoft)" }}>{masaNo}</div>
     </div>
-    <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 8, color: "var(--muted)", fontSize: 13, fontStyle: "italic", animation: "blink 2s ease-in-out infinite" }}>
-      <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#6aaae0" }} />
+    <div style={{ marginTop:20, display:"flex", alignItems:"center", gap:8, color:"var(--muted)", fontSize:13, fontStyle:"italic", animation:"blink 2s ease-in-out infinite" }}>
+      <div style={{ width:7, height:7, borderRadius:"50%", background:"#6aaae0" }} />
       Garsonunuz geliyor...
+    </div>
+  </div>
+);
+
+/* ══════════════════════════════════════════════════════════
+   CUSTOMER: THANK YOU
+══════════════════════════════════════════════════════════ */
+const ThankYouScreen = ({ venueAd, gorsel }) => (
+  <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"var(--bg)", padding:28, textAlign:"center" }}>
+
+    {gorsel ? (
+      <div style={{ width:"100%", maxWidth:360, marginBottom:24, borderRadius:22, overflow:"hidden", border:"2px solid var(--gold)", boxShadow:"0 0 40px rgba(201,145,58,.25)", animation:"fadeIn .6s ease-out" }}>
+        <img src={gorsel} alt="Teşekkürler" style={{ width:"100%", display:"block", maxHeight:300, objectFit:"cover" }} />
+      </div>
+    ) : (
+      <div style={{ fontSize:64, marginBottom:16, animation:"bounce .6s ease-out" }}>🙏</div>
+    )}
+
+    <div style={{ fontFamily:"var(--fh)", fontSize:24, color:"var(--cream)", marginBottom:10 }}>Teşekkürler!</div>
+    <div style={{ fontSize:15, color:"var(--muted)", lineHeight:1.8, maxWidth:280 }}>
+      Hesabınız kapatıldı.<br />
+      {venueAd && <><span style={{color:"var(--gsoft)"}}>{venueAd}</span>'e tekrar bekleriz.</>}
+    </div>
+    <div style={{ marginTop:28, fontSize:13, color:"var(--muted)", fontStyle:"italic", animation:"blink 3s ease-in-out infinite" }}>
+      Afiyet olsun 🌟
     </div>
   </div>
 );
@@ -330,7 +366,9 @@ const CustomerChat = ({ session, venueAd }) => {
   const [tab, setTab]             = useState("chat");
   const [cart, setCart]           = useState([]);
   const [orderLoading, setOrderLoading] = useState(false);
-  const [falMode, setFalMode]     = useState(false);   // kahve falı modu
+  const [gorselGiris, setGorselGiris]       = useState("");
+  const [gorselTesekkur, setGorselTesekkur] = useState("");
+  const [falMode, setFalMode]                 = useState(false);   // kahve falı modu
   const [falPhotos, setFalPhotos] = useState([]);       // [{data, type}]
   const [falLoading, setFalLoading] = useState(false);
   const falFileRef = useRef(null);
@@ -342,7 +380,12 @@ const CustomerChat = ({ session, venueAd }) => {
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
   useEffect(() => {
-    get(`panel.php?type=menu&session_id=${session.id}`).then(r => { if (r.menu) setMenu(r.menu); if (r.specials) setSpecials(r.specials); });
+    get(`panel.php?type=menu&session_id=${session.id}`).then(r => {
+      if (r.menu)             setMenu(r.menu);
+      if (r.specials)         setSpecials(r.specials);
+      if (r.gorsel_giris)     setGorselGiris(r.gorsel_giris);
+      if (r.gorsel_tesekkur)  setGorselTesekkur(r.gorsel_tesekkur);
+    });
   }, []);
 
   const prevStatusRef = useRef({});
@@ -1365,47 +1408,106 @@ const QRManager = ({ tables, venueAd }) => {
    MEKAN BİLGİ EDİTÖRÜ
 ══════════════════════════════════════════════════════════ */
 const MekanBilgiEditor = ({ venueId }) => {
-  const [bilgi, setBilgi] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [bilgi,         setBilgi]         = useState("");
+  const [gorselGiris,   setGorselGiris]   = useState("");
+  const [gorselTesekkur,setGorselTesekkur]= useState("");
+  const [saved,  setSaved]  = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [upGiris,    setUpGiris]    = useState(false);
+  const [upTesekkur, setUpTesekkur] = useState(false);
+  const girisRef    = useRef(null);
+  const tesekkurRef = useRef(null);
 
   useEffect(() => {
     const token = localStorage.getItem("sg_token") || "";
-    fetch(`${API}/panel.php?type=menu`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(r => r.json()).then(r => {
-      if (r.mekan_bilgi !== undefined) setBilgi(r.mekan_bilgi || "");
-      setLoaded(true);
-    }).catch(() => setLoaded(true));
+    fetch(`${API}/panel.php?type=menu`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r=>r.json()).then(r => {
+        if (r.mekan_bilgi     !== undefined) setBilgi(r.mekan_bilgi || "");
+        if (r.gorsel_giris    !== undefined) setGorselGiris(r.gorsel_giris || "");
+        if (r.gorsel_tesekkur !== undefined) setGorselTesekkur(r.gorsel_tesekkur || "");
+        setLoaded(true);
+      }).catch(() => setLoaded(true));
   }, [venueId]);
+
+  const uploadImg = async (file, setBusy, setUrl) => {
+    setBusy(true);
+    const fd = new FormData();
+    fd.append("image", file);
+    const token = localStorage.getItem("sg_token") || "";
+    fd.append("_token", token);
+    const r = await fetch(`${API}/upload.php`, {
+      method:"POST", headers:{ Authorization:`Bearer ${token}` }, body: fd
+    }).then(r=>r.json());
+    if (r.ok) setUrl(r.url);
+    setBusy(false);
+  };
 
   const save = async () => {
     const token = localStorage.getItem("sg_token") || "";
     const r = await fetch(`${API}/panel.php`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ action: "venue_update", mekan_bilgi: bilgi, _token: token })
-    }).then(r => r.json());
-    if (r.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+      method:"POST",
+      headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` },
+      body: JSON.stringify({ action:"venue_update", mekan_bilgi:bilgi, gorsel_giris:gorselGiris, gorsel_tesekkur:gorselTesekkur, _token:token })
+    }).then(r=>r.json());
+    if (r.ok) { setSaved(true); setTimeout(()=>setSaved(false), 2500); }
   };
 
   if (!loaded) return null;
 
+  const ImgSlot = ({ label, hint, val, setVal, busy, setBusy, fileRef }) => (
+    <div style={{ marginBottom:14 }}>
+      <div style={{ fontSize:12, color:"var(--muted)", marginBottom:7 }}>{label}</div>
+      <div style={{ fontSize:11, color:"var(--muted)", fontStyle:"italic", marginBottom:8 }}>{hint}</div>
+      {val ? (
+        <div style={{ position:"relative", marginBottom:8 }}>
+          <img src={val} alt="" style={{ width:"100%", maxHeight:160, objectFit:"cover", borderRadius:14, border:"2px solid var(--gold)", display:"block" }} />
+          <button onClick={()=>setVal("")} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:"50%", background:"rgba(0,0,0,.7)", border:"none", color:"#fff", cursor:"pointer", fontSize:14 }}>✕</button>
+        </div>
+      ) : (
+        <div style={{ width:"100%", height:80, borderRadius:14, border:"2px dashed var(--bord)", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--muted)", fontSize:13, marginBottom:8 }}>
+          Henüz görsel yok
+        </div>
+      )}
+      <input ref={fileRef} type="file" accept="image/*,image/gif" style={{display:"none"}}
+        onChange={e=>{ const f=e.target.files?.[0]; if(f) uploadImg(f,setBusy,setVal); e.target.value=""; }} />
+      <div style={{ display:"flex", gap:8 }}>
+        <button onClick={()=>fileRef.current?.click()} disabled={busy}
+          style={{ flex:1, padding:"8px", background:"rgba(201,145,58,.12)", border:"1px solid rgba(201,145,58,.35)", borderRadius:9, color:"var(--gsoft)", cursor:busy?"not-allowed":"pointer", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+          {busy ? <Spin /> : "📁 Yükle (JPG/PNG/GIF)"}
+        </button>
+        <button onClick={()=>{ const u=window.prompt("Görsel URL:"); if(u?.trim()) setVal(u.trim()); }}
+          style={{ flex:1, padding:"8px", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, color:"var(--muted)", cursor:"pointer", fontSize:12 }}>
+          🔗 URL
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ padding:"14px 15px", background:"var(--surf2)", border:"1px solid var(--gdim)", borderRadius:14, marginBottom:14 }}>
-      <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--muted)", marginBottom:6 }}>🏠 Mekan Hakkında</div>
-      <div style={{ fontSize:12, color:"var(--muted)", fontStyle:"italic", marginBottom:10 }}>
-        Yapay zeka bu bilgileri müşterilere anlatır. Mekanın hikayesi, özelliği, ödüller, mutfak tarzı vb.
-      </div>
-      <textarea
-        value={bilgi}
-        onChange={e => setBilgi(e.target.value)}
-        placeholder="Örn: 2010'dan beri hizmet veren, Gaziantep mutfağını modern yorumlarla sunan bir bistro. Baklavanın 40 kat yufkasıyla ünlüyüz..."
-        rows={4}
-        style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"10px 13px", color:"var(--cream)", fontSize:13, outline:"none", resize:"vertical", lineHeight:1.6 }}
+      <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--gsoft)", marginBottom:14 }}>🎨 Müşteri Ekranları</div>
+
+      <ImgSlot
+        label="🚪 Açılış / Karşılama Görseli"
+        hint="Müşteri QR okuttuğunda görünür. GIF animasyon kullanabilirsiniz."
+        val={gorselGiris} setVal={setGorselGiris}
+        busy={upGiris} setBusy={setUpGiris} fileRef={girisRef}
+      />
+      <ImgSlot
+        label="🙏 Teşekkür / Veda Görseli"
+        hint="Hesap ödendikten sonra görünür. Sezon tebriği, kampanya, teşekkür kartı vb."
+        val={gorselTesekkur} setVal={setGorselTesekkur}
+        busy={upTesekkur} setBusy={setUpTesekkur} fileRef={tesekkurRef}
+      />
+
+      <div style={{ height:1, background:"var(--bord)", margin:"10px 0 14px" }} />
+      <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--muted)", marginBottom:8 }}>🏠 Mekan Hakkında (Yapay Zeka İçin)</div>
+      <textarea value={bilgi} onChange={e=>setBilgi(e.target.value)}
+        placeholder="Mekanın hikayesi, mutfak tarzı, özellikler, ödüller..."
+        rows={3} style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"10px 13px", color:"var(--cream)", fontSize:13, outline:"none", resize:"vertical", lineHeight:1.6 }}
       />
       {saved && <div style={{ fontSize:12, color:"#3aaa6a", marginTop:6 }}>✅ Kaydedildi</div>}
-      <button onClick={save} style={{ width:"100%", padding:"10px", marginTop:10, background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:13, fontWeight:600 }}>Kaydet</button>
+      <button onClick={save} style={{ width:"100%", padding:"11px", marginTop:10, background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:13, fontWeight:600 }}>Kaydet</button>
     </div>
   );
 };
@@ -2080,7 +2182,9 @@ export default function App() {
   const [sessionStatus, setSessionStatus] = useState(null);
   const [qrLoading, setQrLoading]         = useState(isCustomer);
   const [qrError, setQrError]             = useState("");
-  const [sessionClosed, setSessionClosed] = useState(false); // hesap ödendi, yeni session açma
+  const [sessionClosed, setSessionClosed]   = useState(false);
+  const [gorselGiris_, setGorselGiris_]         = useState("");
+  const [gorselTesekkur_, setGorselTesekkur_]   = useState("");
 
   // QR yükle
   useEffect(() => {
@@ -2089,6 +2193,11 @@ export default function App() {
       if (r.error) { setQrError("Geçersiz veya süresi dolmuş QR kodu."); setQrLoading(false); return; }
       const info = { venue_id: r.venue_id, venue_ad: r.venue_ad, masa_no: r.masa_no, table_id: r.table_id };
       setQrInfo(info);
+      // Mekan görsellerini şimdiden çek (session_id henüz yok, venue_id ile)
+      fetch(`${API}/panel.php?type=menu&venue_id=${r.venue_id}`)
+        .then(res=>res.json())
+        .then(m=>{ if(m.gorsel_giris) setGorselGiris_(m.gorsel_giris); if(m.gorsel_tesekkur) setGorselTesekkur_(m.gorsel_tesekkur); })
+        .catch(()=>{});
 
       // Backend'den gelen aktif oturum varsa onu kullan (QR tekrar okutma koruması)
       if (r.session && r.session.id) {
@@ -2165,18 +2274,11 @@ export default function App() {
   if (isCustomer) {
     if (qrLoading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}><Spin /></div>;
     if (qrError)   return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 28, flexDirection: "column", gap: 16 }}><div style={{ fontSize: 40 }}>❌</div><div style={{ fontFamily: "var(--fh)", fontSize: 20, color: "var(--cream)", textAlign: "center" }}>{qrError}</div></div>;
-    if (!session || sessionStatus === "bekliyor") return <WaitingScreen venueAd={qrInfo?.venue_ad || ""} masaNo={qrInfo?.masa_no || ""} />;
+    if (!session || sessionStatus === "bekliyor") return <WaitingScreen venueAd={qrInfo?.venue_ad || ""} masaNo={qrInfo?.masa_no || ""} gorsel={gorselGiris_} />;
     if (sessionStatus === "askida" || sessionClosed) return (
-      <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"var(--bg)",padding:28}}>
-        <div style={{fontSize:52,marginBottom:20}}>🙏</div>
-        <div style={{fontFamily:"var(--fh)",fontSize:22,color:"var(--cream)",marginBottom:10,textAlign:"center"}}>Teşekkürler!</div>
-        <div style={{fontSize:14,color:"var(--muted)",textAlign:"center",lineHeight:1.8}}>
-          Hesabınız kapatıldı.<br/>
-          <span style={{color:"var(--gsoft)"}}>{qrInfo?.venue_ad}</span>'e tekrar bekleriz.
-        </div>
-      </div>
+      <ThankYouScreen venueAd={qrInfo?.venue_ad || ""} gorsel={gorselTesekkur_} />
     );
-    return <CustomerChat session={session} venueAd={qrInfo?.venue_ad || ""} />;
+    return <CustomerChat session={session} venueAd={qrInfo?.venue_ad || ""} gorselGiris={gorselGiris_} />;
   }
 
   // Personel akışı
