@@ -508,7 +508,7 @@ const CustomerChat = ({ session, venueAd }) => {
   const cartCount = cart.reduce((s, c) => s + c.qty, 0);
 
   return (
-    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "var(--bg)", overflow: "hidden" }}>
+    <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: "var(--bg)", overflow: "hidden" }}>
       {/* Header */}
       <div style={{ padding: "7px 12px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid var(--bord)", background: "rgba(22,14,8,.95)", flexShrink: 0 }}>
         <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--gold) 0%,#6b3d10 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>🍽️</div>
@@ -1704,7 +1704,14 @@ const StaffPanel = ({ staff, onLogout }) => {
 
   const sAct = async (id, durum, vid_) => { await post("session.php", { action: "update", id, durum, venue_id: vid_ || vid }); fetchAll(); };
   const sClose = async (id, vid_) => { await post("session.php", { action: "close", id, venue_id: vid_ || vid }); fetchAll(); };
-  const oAct  = async (id, status) => { await post("order.php", { action: "status", id, status }); fetchAll(); };
+  const oActBusy = useRef(new Set());
+  const oAct = async (id, status) => {
+    if (oActBusy.current.has(id)) return; // çift tıklama önlemi
+    oActBusy.current.add(id);
+    await post("order.php", { action: "status", id, status });
+    await fetchAll();
+    setTimeout(() => oActBusy.current.delete(id), 1500); // 1.5sn sonra tekrar aktif
+  };
   const ack   = async id => { await post("panel.php", { action: "ack", id }); fetchAll(); };
 
   const garsonSubmit = async () => {
