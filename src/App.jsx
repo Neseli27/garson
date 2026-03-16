@@ -330,6 +330,10 @@ const CustomerChat = ({ session, venueAd }) => {
   const [tab, setTab]             = useState("chat");
   const [cart, setCart]           = useState([]);
   const [orderLoading, setOrderLoading] = useState(false);
+  const [falMode, setFalMode]     = useState(false);   // kahve falı modu
+  const [falPhotos, setFalPhotos] = useState([]);       // [{data, type}]
+  const [falLoading, setFalLoading] = useState(false);
+  const falFileRef = useRef(null);
   const endRef  = useRef(null);
   const recRef  = useRef(null);
   const taRef   = useRef(null);
@@ -341,14 +345,45 @@ const CustomerChat = ({ session, venueAd }) => {
     get(`panel.php?type=menu&session_id=${session.id}`).then(r => { if (r.menu) setMenu(r.menu); if (r.specials) setSpecials(r.specials); });
   }, []);
 
+  const prevStatusRef = useRef({});
+  const checkinTimer  = useRef(null);
+
   useEffect(() => {
     const poll = async () => {
       const r = await get(`order.php?session_id=${session.id}`);
-      if (r.orders) setTableOrders(r.orders.map(o => ({ ...o, urunler: typeof o.urunler === "string" ? JSON.parse(o.urunler) : (o.urunler || []) })));
+      if (!r.orders) return;
+      const orders = r.orders.map(o => ({
+        ...o, urunler: typeof o.urunler==="string" ? JSON.parse(o.urunler) : (o.urunler||[])
+      }));
+      setTableOrders(orders);
+
+      // Durum değişimi → AI bildirim
+      for (const o of orders) {
+        const prev = prevStatusRef.current[o.id];
+        if (prev && prev !== o.status && (o.status==="hazırlanıyor" || o.status==="hazır")) {
+          try {
+            const res = await post("chat.php", { session_id:session.id, mode:"status_notify", status:o.status, urunler:o.urunler, messages:[] });
+            const text = res.content?.[0]?.text;
+            if (text) { setMsgs(p=>[...p,{role:"assistant",content:text,id:Date.now(),time:ts(),auto:true}]); speak(text); playBeep(o.status==="hazır"?880:660,.25,2); }
+          } catch {}
+          // Hazır → 7dk sonra check-in
+          if (o.status==="hazır") {
+            if (checkinTimer.current) clearTimeout(checkinTimer.current);
+            checkinTimer.current = setTimeout(async () => {
+              try {
+                const res = await post("chat.php", { session_id:session.id, mode:"checkin", urunler:o.urunler, messages:[] });
+                const text = res.content?.[0]?.text;
+                if (text) { setMsgs(p=>[...p,{role:"assistant",content:text,id:Date.now(),time:ts(),auto:true}]); speak(text); }
+              } catch {}
+            }, 7*60*1000);
+          }
+        }
+        prevStatusRef.current[o.id] = o.status;
+      }
     };
     poll();
     const i = setInterval(poll, 4000);
-    return () => clearInterval(i);
+    return () => { clearInterval(i); if(checkinTimer.current) clearTimeout(checkinTimer.current); };
   }, [session.id]);
 
   const speak = useCallback(text => {
@@ -481,9 +516,75 @@ const CustomerChat = ({ session, venueAd }) => {
               )}
               <div ref={endRef} />
             </div>
+            {/* Kahve falı fotoğraf alanı */}
+            {falMode && (
+              <div style={{ padding:"10px 12px", borderTop:"1px solid var(--bord)", background:"rgba(201,145,58,.06)", flexShrink:0 }}>
+                <div style={{ fontSize:13, color:"var(--gsoft)", fontFamily:"var(--fh)", marginBottom:8 }}>
+                  ☕ Fotoğraflar ({falPhotos.length}/3)
+                </div>
+                <div style={{ display:"flex", gap:8, marginBottom:8, overflowX:"auto" }}>
+                  {falPhotos.map((p,i) => (
+                    <div key={i} style={{ position:"relative", flexShrink:0 }}>
+                      <img src={`data:${p.type};base64,${p.data}`} alt="" style={{ width:70, height:70, objectFit:"cover", borderRadius:10, border:"2px solid var(--gold)" }} />
+                      <button onClick={()=>setFalPhotos(prev=>prev.filter((_,j)=>j!==i))} style={{ position:"absolute", top:-6, right:-6, width:20, height:20, borderRadius:"50%", background:"rgba(192,64,64,.9)", border:"none", color:"#fff", cursor:"pointer", fontSize:11, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                    </div>
+                  ))}
+                  {falPhotos.length < 3 && (
+                    <button onClick={()=>falFileRef.current?.click()} style={{ width:70, height:70, borderRadius:10, background:"var(--surf2)", border:"2px dashed var(--bord)", color:"var(--muted)", cursor:"pointer", fontSize:24, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>+</button>
+                  )}
+                  <input ref={falFileRef} type="file" accept="image/*" capture="environment" style={{display:"none"}}
+                    onChange={e=>{
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = ev => {
+                        const base64 = ev.target.result.split(",")[1];
+                        const type   = file.type;
+                        setFalPhotos(prev => [...prev, { data: base64, type }]);
+                      };
+                      reader.readAsDataURL(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={()=>{ setFalMode(false); setFalPhotos([]); }} style={{ flex:1, padding:"9px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:10, color:"var(--muted)", cursor:"pointer", fontSize:13 }}>Vazgeç</button>
+                  <button
+                    disabled={falPhotos.length < 3 || falLoading}
+                    onClick={async()=>{
+                      if (falPhotos.length < 3) return;
+                      setFalLoading(true);
+                      setMsgs(p=>[...p,{role:"user",content:"☕ İşte fincan fotoğraflarım! Falıma bakabilir misin?",id:Date.now(),time:ts()}]);
+                      try {
+                        const res = await post("chat.php", { session_id:session.id, mode:"fal", images:falPhotos, messages:[] });
+                        const text = res.content?.[0]?.text || "Fal bakılamadı, üzgünüm.";
+                        setMsgs(p=>[...p,{role:"assistant",content:text,id:Date.now(),time:ts()}]);
+                        speak(text);
+                      } catch { setMsgs(p=>[...p,{role:"assistant",content:"Bir sorun oluştu.",id:Date.now(),time:ts()}]); }
+                      setFalLoading(false); setFalMode(false); setFalPhotos([]);
+                    }}
+                    style={{ flex:2, padding:"9px", background:falPhotos.length>=3?"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)":"var(--surf2)", border:"none", borderRadius:10, color:falPhotos.length>=3?"#0b0704":"var(--muted)", cursor:falPhotos.length>=3?"pointer":"not-allowed", fontFamily:"var(--fh)", fontSize:13, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
+                  >
+                    {falLoading ? <Spin /> : `☕ Fala Bak${falPhotos.length<3?" ("+falPhotos.length+"/3)":""}`}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div style={{ padding: "0 12px 7px", display: "flex", gap: 7, overflowX: "auto", flexShrink: 0 }}>
-              {["Menüyü anlat", "Ne önerirsin?", "Sipariş vermek istiyorum", "Hesabı istiyorum"].map(s => (
-                <button key={s} onClick={() => send(s)} style={{ background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 20, padding: "5px 12px", color: "var(--muted)", cursor: "pointer", fontSize: 12, whiteSpace: "nowrap", flexShrink: 0 }}>{s}</button>
+              {["Menüyü anlat", "Ne önerirsin?", "Sipariş vermek istiyorum", "☕ Kahve falı"].map(s => (
+                <button key={s} onClick={() => {
+                if (s === "☕ Kahve falı") {
+                  setFalMode(true);
+                  setFalPhotos([]);
+                  setMsgs(p => [...p, {
+                    role: "assistant",
+                    content: "☕ Kahve falına hoş geldiniz!\n\n⚠️ Bu tamamen eğlence amaçlı bir özellik. Gerçek bir kehanet değildir, bilimsel bir dayanağı yoktur — sadece keyifli vakit geçirmek için!\n\nLütfen kahve fincanınızın 3 farklı açıdan fotoğrafını çekin. Her fotoğrafı aşağıdaki alandan ekleyin.",
+                    id: Date.now(),
+                    time: ts()
+                  }]);
+                } else { send(s); }
+              }} style={{ background: s==="☕ Kahve falı"?"rgba(201,145,58,.15)":"var(--surf2)", border: `1px solid ${s==="☕ Kahve falı"?"rgba(201,145,58,.4)":"var(--bord)"}`, borderRadius: 20, padding: "5px 12px", color: s==="☕ Kahve falı"?"var(--gsoft)":"var(--muted)", cursor: "pointer", fontSize: 12, whiteSpace: "nowrap", flexShrink: 0 }}>{s}</button>
               ))}
             </div>
             <div style={{ padding: "6px 10px 10px", borderTop: "1px solid var(--bord)", background: "rgba(22,14,8,.95)", flexShrink: 0 }}>
@@ -787,12 +888,16 @@ const MenuManager = ({ venueId }) => {
                             />
                           )}
                           <div>
-                            <div style={{fontSize:14,color:"var(--cream)",fontWeight:500}}>{item.name}</div>
+                            <div style={{fontSize:14,color:"var(--cream)",fontWeight:500}}>{item.one_cikan && <span style={{color:"var(--gold)",marginRight:5}}>⭐</span>}{item.name}</div>
                             <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>{item.price}₺ · ~{item.wait}dk{item.desc ? " · "+item.desc : ""}</div>
                             {(item.aktif===0||item.aktif==="0") && <div style={{fontSize:11,color:"#e06060",marginTop:2}}>⏸ Satış durduruldu</div>}
                           </div>
                         </div>
                         <div style={{display:"flex",gap:5,marginLeft:8}}>
+                          <button onClick={async()=>{
+                            const r = await apicall("menu_feature",{id:item.id,value:item.one_cikan?0:1});
+                            if(r.ok) await load();
+                          }} title={item.one_cikan?"Öne Çıkarma Kaldır":"Öne Çıkar"} style={{width:28,height:28,borderRadius:7,background:item.one_cikan?"rgba(201,145,58,.25)":"var(--surf)",border:`1px solid ${item.one_cikan?"rgba(201,145,58,.6)":"var(--bord)"}`,color:item.one_cikan?"var(--gold)":"var(--muted)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>⭐</button>
                           <button onClick={()=>toggleItem(item)} title={item.aktif?"Durdur":"Aktif Et"} style={{width:28,height:28,borderRadius:7,background:item.aktif?"rgba(201,145,58,.15)":"rgba(58,138,92,.15)",border:`1px solid ${item.aktif?"rgba(201,145,58,.4)":"rgba(58,138,92,.4)"}`,color:item.aktif?"var(--gsoft)":"#3aaa6a",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>{item.aktif?"⏸":"▶"}</button>
                           <button onClick={()=>setEditItem({...item})} title="Düzenle" style={{width:28,height:28,borderRadius:7,background:"rgba(58,106,154,.15)",border:"1px solid rgba(58,106,154,.4)",color:"#6aaae0",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>✎</button>
                           <button onClick={()=>delItem(item.id, item.name)} title="Sil" style={{width:28,height:28,borderRadius:7,background:"rgba(192,64,64,.15)",border:"1px solid rgba(192,64,64,.3)",color:"#e06060",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
@@ -1258,6 +1363,56 @@ const QRManager = ({ tables, venueAd }) => {
   );
 };
 
+
+/* ══════════════════════════════════════════════════════════
+   MEKAN BİLGİ EDİTÖRÜ
+══════════════════════════════════════════════════════════ */
+const MekanBilgiEditor = ({ venueId }) => {
+  const [bilgi, setBilgi] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("sg_token") || "";
+    fetch(`${API}/panel.php?type=menu`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(r => r.json()).then(r => {
+      if (r.mekan_bilgi !== undefined) setBilgi(r.mekan_bilgi || "");
+      setLoaded(true);
+    }).catch(() => setLoaded(true));
+  }, [venueId]);
+
+  const save = async () => {
+    const token = localStorage.getItem("sg_token") || "";
+    const r = await fetch(`${API}/panel.php`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action: "venue_update", mekan_bilgi: bilgi, _token: token })
+    }).then(r => r.json());
+    if (r.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <div style={{ padding:"14px 15px", background:"var(--surf2)", border:"1px solid var(--gdim)", borderRadius:14, marginBottom:14 }}>
+      <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--muted)", marginBottom:6 }}>🏠 Mekan Hakkında</div>
+      <div style={{ fontSize:12, color:"var(--muted)", fontStyle:"italic", marginBottom:10 }}>
+        Yapay zeka bu bilgileri müşterilere anlatır. Mekanın hikayesi, özelliği, ödüller, mutfak tarzı vb.
+      </div>
+      <textarea
+        value={bilgi}
+        onChange={e => setBilgi(e.target.value)}
+        placeholder="Örn: 2010'dan beri hizmet veren, Gaziantep mutfağını modern yorumlarla sunan bir bistro. Baklavanın 40 kat yufkasıyla ünlüyüz..."
+        rows={4}
+        style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"10px 13px", color:"var(--cream)", fontSize:13, outline:"none", resize:"vertical", lineHeight:1.6 }}
+      />
+      {saved && <div style={{ fontSize:12, color:"#3aaa6a", marginTop:6 }}>✅ Kaydedildi</div>}
+      <button onClick={save} style={{ width:"100%", padding:"10px", marginTop:10, background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:13, fontWeight:600 }}>Kaydet</button>
+    </div>
+  );
+};
+
 /* ══════════════════════════════════════════════════════════
    CHANGE PASSWORD SCREEN (ilk giriş)
 ══════════════════════════════════════════════════════════ */
@@ -1679,6 +1834,9 @@ const StaffPanel = ({ staff, onLogout }) => {
                   ))}
                 </div>
               )}
+              {/* Mekan bilgisi */}
+              <MekanBilgiEditor venueId={vid} />
+
               {/* Şifre değiştir */}
               <div style={{...card({border:"1px solid var(--gdim)"})}}>
                 <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--muted)",marginBottom:10}}>🔑 Şifre Değiştir</div>
