@@ -732,7 +732,7 @@ const ImagePicker = ({ value, onChange, uploading, onUpload }) => {
 /* ══════════════════════════════════════════════════════════
    MENU MANAGER — Tamamen bağımsız, kendi state'i var
 ══════════════════════════════════════════════════════════ */
-const MenuManager = ({ venueId }) => {
+const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
   const [tab, setTab]         = useState("liste");
   const [cats, setCats]       = useState([]);    // string[]
   const [items, setItems]     = useState([]);    // tüm ürünler flat
@@ -794,18 +794,44 @@ const MenuManager = ({ venueId }) => {
         headers: { Authorization: `Bearer ${token()}` },
       });
       const r = await res.json();
-      if (r.menu) {
-        const catList = Object.keys(r.menu);
-        setCats(catList);
-        const flat = catList.flatMap(cat =>
-          (r.menu[cat] || []).map(i => ({ ...i, cat }))
-        );
-        setItems(flat);
-        if (!pCat && catList.length > 0) setPCat(catList[0]);
+      const menuData = r.menu || {};
+      // __placeholder__ içermeyen gerçek kategoriler
+      const catList = Object.keys(menuData).filter(cat =>
+        (menuData[cat] || []).some(i => i.name !== "__placeholder__") ||
+        (menuData[cat] || []).length === 0
+      );
+      // Boş ama placeholder olan kategorileri de göster (yeni eklendi)
+      const allCats = Object.keys(menuData);
+      setCats(allCats);
+      const flat = allCats.flatMap(cat =>
+        (menuData[cat] || [])
+          .filter(i => i.name !== "__placeholder__")
+          .map(i => ({ ...i, cat }))
+      );
+      setItems(flat);
+      if (flat.length > 0 || allCats.length > 0) {
+        if (!pCat && allCats.length > 0) setPCat(allCats[0]);
       }
+      // Parent'ı da güncelle
+      if (parentFetch) parentFetch();
     } catch(e) { setMsg("❌ Yüklenemedi: " + e.message); }
     setLoading(false);
   };
+
+  // Parent menu değişince local state'i güncelle (hayalet önleme)
+  useEffect(() => {
+    if (!parentMenu) return;
+    const allCats = Object.keys(parentMenu);
+    setCats(allCats);
+    const flat = allCats.flatMap(cat =>
+      (parentMenu[cat] || [])
+        .filter(i => i.name !== "__placeholder__")
+        .map(i => ({ ...i, cat }))
+    );
+    setItems(flat);
+    if (!pCat && allCats.length > 0) setPCat(allCats[0]);
+    setLoading(false);
+  }, [parentMenu]);
 
   useEffect(() => { load(); }, []);
 
@@ -2023,7 +2049,7 @@ const StaffPanel = ({ staff, onLogout }) => {
             </>}
             {/* ── MENÜ ── */}
             {yTab === "menu" && (
-              <MenuManager venueId={vid} />
+              <MenuManager venueId={vid} parentMenu={menu} parentFetch={fetchAll} />
             )}
 
             {yTab === "qr" && (
