@@ -1,7 +1,7 @@
 {
-  "name": "Bistro 7 — Sanal Garson",
-  "short_name": "Garson AI",
-  "description": "Bistro 7 dijital garson uygulaması",
+  "name": "Sanal Garson",
+  "short_name": "Garson",
+  "description": "Dijital garson uygulaması",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b0704",
