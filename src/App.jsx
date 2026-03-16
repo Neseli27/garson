@@ -988,7 +988,6 @@ const StaffPanel = ({ staff, onLogout }) => {
   const [masaPopup, setMasaPopup] = useState(null); // popup için seçili masa/oturum
   const [newMasa, setNewMasa] = useState(""); // masa ekleme input
   const [yTab, setYTab]       = useState("ozet"); // yönetim alt sekme
-  const [newMasa, setNewMasa]   = useState("");
   const [newItem, setNewItem]   = useState({ cat: "", name: "", price: "", desc: "", wait: "" });
   const [newSpec, setNewSpec]   = useState({ name: "", price: "", desc: "" });
 
