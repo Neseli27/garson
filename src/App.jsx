@@ -1781,36 +1781,80 @@ const StaffPanel = ({ staff, onLogout }) => {
         )}
 
         {/* ── BİLDİRİMLER ── */}
-        {!loading && tab === "bildirim" && (
-          <>
-            {notifs.filter(n=>!n.acked).length > 0 && (
-              <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
-                <button onClick={async()=>{
-                  await Promise.all(notifs.filter(n=>!n.acked).map(n=>post("panel.php",{action:"ack",id:n.id})));
-                  fetchAll();
-                }} style={{fontSize:12,color:"var(--muted)",background:"none",border:"1px solid var(--bord)",borderRadius:8,padding:"5px 12px",cursor:"pointer"}}>
-                  ✓ Tümünü Okundu İşaretle
-                </button>
-              </div>
-            )}
-            {notifs.length === 0
-              ? <div style={{ textAlign: "center", color: "var(--muted)", marginTop: 60 }}><div style={{ fontSize: 36 }}>🔕</div><div style={{ marginTop: 12, fontSize: 14, fontStyle: "italic" }}>Bildirim yok</div></div>
-              : [...notifs].reverse().map(n => (
-              <div key={n.id} style={{ ...card({ background: n.type === "garson" ? "rgba(58,106,154,.1)" : n.type === "bekliyor" ? "rgba(58,106,154,.08)" : "rgba(201,145,58,.08)", border: `1px solid ${n.type === "garson" || n.type === "bekliyor" ? "rgba(58,106,154,.4)" : "rgba(201,145,58,.35)"}`, animation: !n.acked ? "blink 1.5s ease-in-out infinite" : "none" }) }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div>
-                    <div style={{ fontFamily: "var(--fh)", fontSize: 15, color: n.type === "hesap" ? "var(--gsoft)" : "#6aaae0" }}>
-                      {n.type === "bekliyor" ? `🪑 Masa ${n.masa_no} — Müşteri oturdu` : n.type === "garson" ? `🔔 Masa ${n.masa_no} — Garson çağırıyor` : `💳 Masa ${n.masa_no} — Hesap istiyor`}
-                    </div>
-                    {n.type === "hesap" && <div style={{ fontSize: 13, color: "var(--cream)", marginTop: 4 }}>Ödeme: {n.payment === "nakit" ? "Nakit 💵" : n.payment === "kart" ? "Kart 💳" : "QR 📱"} · <strong style={{ color: "var(--gsoft)" }}>{n.total}₺</strong></div>}
-                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>🕐 {n.created_at?.slice(11, 16)}</div>
-                  </div>
-                  {!n.acked && <button onClick={() => ack(n.id)} style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 8, color: "var(--muted)", cursor: "pointer", padding: "5px 11px", fontSize: 12, flexShrink: 0, marginLeft: 9 }}>✓ Tamam</button>}
+        {!loading && tab === "bildirim" && (() => {
+          // Sadece okunmamış bildirimleri göster
+          const unread = notifs.filter(n => !n.acked);
+          return (
+            <>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                <div style={{ fontSize:13, color:"var(--muted)" }}>
+                  {unread.length > 0 ? `${unread.length} yeni bildirim` : "Tüm bildirimler okundu"}
                 </div>
+                {unread.length > 0 && (
+                  <button onClick={async()=>{
+                    await Promise.all(unread.map(n=>post("panel.php",{action:"ack",id:n.id})));
+                    fetchAll();
+                  }} style={{fontSize:12,color:"var(--muted)",background:"none",border:"1px solid var(--bord)",borderRadius:8,padding:"5px 12px",cursor:"pointer"}}>
+                    ✓ Tümünü Temizle
+                  </button>
+                )}
               </div>
-            ))}
-          </>
-        )}
+
+              {unread.length === 0 && (
+                <div style={{ textAlign:"center", color:"var(--muted)", marginTop:60 }}>
+                  <div style={{ fontSize:36 }}>🔕</div>
+                  <div style={{ marginTop:12, fontSize:14, fontStyle:"italic" }}>Yeni bildirim yok</div>
+                </div>
+              )}
+
+              {unread.sort((a,b)=>b.created_at?.localeCompare(a.created_at)).map(n => {
+                const isBekliyor = n.type === "bekliyor";
+                const isGarson   = n.type === "garson";
+                const isHesap    = n.type === "hesap";
+                // bekliyor bildirimini sadece masa hâlâ "bekliyor" durumundaysa göster
+                const ses = sessions.find(s => String(s.id) === String(n.session_id));
+                if (isBekliyor && ses && ses.durum !== "bekliyor") return null; // aktif/kapandı → gösterme
+
+                return (
+                  <div key={n.id} style={{ padding:"13px 15px", marginBottom:10, borderRadius:14, animation:"bounce .3s ease-out",
+                    background: isHesap ? "rgba(201,145,58,.12)" : "rgba(58,106,154,.12)",
+                    border: `1px solid ${isHesap ? "rgba(201,145,58,.45)" : "rgba(58,106,154,.45)"}`,
+                  }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10 }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontFamily:"var(--fh)", fontSize:15, color: isHesap ? "var(--gsoft)" : "#6aaae0", marginBottom:4 }}>
+                          {isBekliyor && `🪑 Masa ${n.masa_no} — Müşteri bekleniyor`}
+                          {isGarson   && `🔔 Masa ${n.masa_no} — Garson çağırıyor`}
+                          {isHesap    && `💳 Masa ${n.masa_no} — Hesap istiyor`}
+                        </div>
+                        {isHesap && (
+                          <div style={{ fontSize:13, color:"var(--cream)", marginBottom:4 }}>
+                            {n.payment==="nakit"?"💵 Nakit":n.payment==="kart"?"💳 Kart":"📱 QR"}
+                            {n.total > 0 && <strong style={{color:"var(--gsoft)",marginLeft:8}}>{n.total}₺</strong>}
+                          </div>
+                        )}
+                        {isBekliyor && ses && (
+                          <div style={{display:"flex",gap:7,marginTop:6}}>
+                            <button onClick={()=>{ post("session.php",{action:"update",id:ses.id,durum:"aktif",venue_id:vid}); ack(n.id); fetchAll(); }}
+                              style={{padding:"5px 13px",background:"rgba(58,138,92,.2)",border:"1px solid rgba(58,138,92,.4)",borderRadius:8,color:"#3aaa6a",cursor:"pointer",fontSize:12,fontFamily:"var(--fh)"}}>
+                              ✓ Onayla
+                            </button>
+                            <button onClick={()=>{ post("session.php",{action:"close",id:ses.id,venue_id:vid}); ack(n.id); fetchAll(); }}
+                              style={{padding:"5px 13px",background:"rgba(192,64,64,.15)",border:"1px solid rgba(192,64,64,.3)",borderRadius:8,color:"#e06060",cursor:"pointer",fontSize:12}}>
+                              ✕ Reddet
+                            </button>
+                          </div>
+                        )}
+                        <div style={{ fontSize:11, color:"var(--muted)", marginTop:4 }}>🕐 {n.created_at?.slice(11,16)}</div>
+                      </div>
+                      <button onClick={()=>ack(n.id)} style={{background:"none",border:"1px solid var(--bord)",borderRadius:8,color:"var(--muted)",cursor:"pointer",padding:"4px 10px",fontSize:11,flexShrink:0,whiteSpace:"nowrap"}}>✓</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          );
+        })()}
 
         {/* ── YÖNETİM (sadece işletmeci) ── */}
         {!loading && tab === "yonetim" && isOwner && (
