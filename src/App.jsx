@@ -3,16 +3,38 @@ import { useState, useRef, useEffect, useCallback } from "react";
 const API = import.meta.env.VITE_API_BASE || "https://garson.testokulu.com/garson-api";
 
 /* ── API ─────────────────────────────────────────────────── */
+// 401 logout flag — paralel request'lerde tek sefer tetiklensin
+let _authFailed = false;
 const req = async (path, opts = {}) => {
   const token = localStorage.getItem("sg_token");
   const res = await fetch(`${API}/${path}`, {
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     ...opts,
   });
+  // 401 Unauthorized — token geçersiz (başka cihazda giriş yapılmış veya oturum silinmiş)
+  // Login endpoint'i hariç (orada 401 "yanlış şifre" demektir)
+  if (res.status === 401 && !path.startsWith("auth.php") && !_authFailed) {
+    const hadToken = !!localStorage.getItem("sg_token");
+    if (hadToken) {
+      _authFailed = true; // paralel 401'lerde tek sefer
+      localStorage.removeItem("sg_token");
+      localStorage.removeItem("sg_staff");
+      alert("Oturumunuz sonlandırıldı. Başka bir cihazdan giriş yapılmış olabilir. Lütfen tekrar giriş yapın.");
+      window.location.reload();
+    }
+  }
   return res.json();
 };
-const get  = path         => req(path);
+// GET: Authorization header bazı hostinglerde (Apache + CGI/FastCGI) PHP'ye iletilmez,
+// bu yüzden _token'ı query string'de de gönderiyoruz (backend body/query/header üçünü de okuyabilir)
+const get = path => {
+  const token = localStorage.getItem("sg_token");
+  if (!token) return req(path);
+  const sep = path.includes("?") ? "&" : "?";
+  return req(`${path}${sep}_token=${encodeURIComponent(token)}`);
+};
 const post = (path, data) => req(path, { method: "POST", body: JSON.stringify({ ...data, _token: localStorage.getItem("sg_token") }) });
+
 
 /* ── HELPERS ─────────────────────────────────────────────── */
 const ts = () => new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
