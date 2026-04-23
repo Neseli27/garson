@@ -1,14 +1,49 @@
 {
   "name": "Sanal Garson",
   "short_name": "Garson",
-  "description": "Dijital garson uygulaması",
+  "description": "Dijital garson uygulaması — QR ile sipariş, masa yönetimi, chat ile menü keşfi",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0b0704",
   "theme_color": "#c9913a",
   "orientation": "portrait",
+  "lang": "tr",
+  "dir": "ltr",
+  "categories": ["food", "business", "productivity"],
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Personel Girişi",
+      "short_name": "Giriş",
+      "description": "İşletmeci veya garson girişi",
+      "url": "/?role=isletmeci",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
   ]
 }
