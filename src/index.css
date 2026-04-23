@@ -69,6 +69,7 @@ input, textarea, button, select {
 /* ══════════════════════════════════════════════════════════
    MASAÜSTÜ DASHBOARD (data-layout="desktop")
    İşletmeci geniş moddayken aktifleşir
+   Layout: sidebar (220px) + content (1100px) = 1400px merkezde
 ══════════════════════════════════════════════════════════ */
 @media (min-width: 900px) {
   body[data-layout="desktop"] {
@@ -79,7 +80,7 @@ input, textarea, button, select {
   }
   body[data-layout="desktop"] #root {
     width: 100%;
-    max-width: 1200px;
+    max-width: 1400px;
     height: auto;
     min-height: 100vh;
     max-height: none;
@@ -87,12 +88,176 @@ input, textarea, button, select {
     border-radius: 0;
     overflow: visible;
     box-shadow: none;
+    padding: 0 20px;
+  }
+
+  /* Dashboard shell: sidebar + ana bölge */
+  body[data-layout="desktop"] .sg-shell {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 24px;
+    min-height: 100vh;
+    align-items: start;
+  }
+
+  /* Sol sidebar — sticky */
+  body[data-layout="desktop"] .sg-sidebar {
+    position: sticky;
+    top: 20px;
+    background: var(--surf);
+    border: 1px solid var(--bord);
+    border-radius: 16px;
+    padding: 20px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    margin-top: 20px;
+  }
+  body[data-layout="desktop"] .sg-sidebar-brand {
+    padding: 4px 8px 16px;
+    border-bottom: 1px solid var(--bord);
+    margin-bottom: 10px;
+  }
+  body[data-layout="desktop"] .sg-sidebar-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: var(--surf2);
+    border: 1px solid var(--gdim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  body[data-layout="desktop"] .sg-sidebar-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  body[data-layout="desktop"] .sg-sidebar-venue {
+    font-family: var(--fh);
+    font-size: 15px;
+    color: var(--cream);
+    line-height: 1.2;
+    word-break: break-word;
+  }
+  body[data-layout="desktop"] .sg-sidebar-role {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+  body[data-layout="desktop"] .sg-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+  }
+  body[data-layout="desktop"] .sg-sidebar-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: none;
+    border: none;
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 13.5px;
+    font-family: var(--fb);
+    cursor: pointer;
+    text-align: left;
+    transition: all .15s;
+    position: relative;
+  }
+  body[data-layout="desktop"] .sg-sidebar-btn:hover {
+    background: var(--surf2);
+    color: var(--cream);
+  }
+  body[data-layout="desktop"] .sg-sidebar-btn.active {
+    background: var(--surf2);
+    color: var(--gsoft);
+    font-weight: 600;
+  }
+  body[data-layout="desktop"] .sg-sidebar-btn.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--gold);
+  }
+  body[data-layout="desktop"] .sg-sidebar-badge {
+    margin-left: auto;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    background: var(--red);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+  }
+  body[data-layout="desktop"] .sg-sidebar-footer {
+    border-top: 1px solid var(--bord);
+    padding-top: 10px;
+    margin-top: 8px;
+  }
+
+  /* Sağ ana bölge (top bar + content) */
+  body[data-layout="desktop"] .sg-main {
+    min-width: 0; /* grid overflow fix */
+    padding-top: 20px;
+    padding-bottom: 40px;
+  }
+  body[data-layout="desktop"] .sg-topbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 22px;
+    background: var(--surf);
+    border: 1px solid var(--bord);
+    border-radius: 14px;
+    margin-bottom: 16px;
+    position: sticky;
+    top: 20px;
+    z-index: 20;
+    backdrop-filter: blur(8px);
+    background: rgba(22, 14, 8, 0.95);
+  }
+  body[data-layout="desktop"] .sg-topbar-title {
+    font-family: var(--fh);
+    font-size: 20px;
+    color: var(--cream);
+  }
+  body[data-layout="desktop"] .sg-topbar-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* Ana içerik — 1100px ile sınırlı */
+  body[data-layout="desktop"] .sg-content {
+    max-width: 1100px;
+    padding: 0;
+  }
+
+  /* Masaüstünde eski üst header+tabbar'ı gizle — sidebar devralıyor */
+  body[data-layout="desktop"] .sg-legacy-header,
+  body[data-layout="desktop"] .sg-legacy-tabs {
+    display: none;
   }
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 1440px) {
   body[data-layout="desktop"] #root {
-    max-width: 1280px;
     padding: 0 24px;
   }
 }
@@ -129,9 +294,6 @@ input, textarea, button, select {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 14px;
-  }
-  body[data-layout="desktop"] .sg-content {
-    padding: 18px 22px 40px;
   }
   body[data-layout="desktop"] .sg-masa-grid {
     display: grid;

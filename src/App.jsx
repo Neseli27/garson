@@ -1897,6 +1897,7 @@ const StaffPanel = ({ staff, onLogout }) => {
   const [yTab, setYTab]       = useState("ozet"); // yönetim alt sekme
   const [newItem, setNewItem]   = useState({ cat: "", name: "", price: "", desc: "", wait: "" });
   const [newSpec, setNewSpec]   = useState({ name: "", price: "", desc: "" });
+  const [logoUrl, setLogoUrl]   = useState(""); // Mekan logosu (sidebar için)
 
   // Süper admin state
   const [venues, setVenues]     = useState([]);
@@ -1924,6 +1925,7 @@ const StaffPanel = ({ staff, onLogout }) => {
       if (p.notifications) setNotifs(p.notifications);
       if (m.menu !== undefined) { setMenu(m.menu); }
       if (m.specials !== undefined) setSpecials(m.specials || []);
+      if (m.logo_url !== undefined) setLogoUrl(m.logo_url || "");
       if (t.tables) setTables(t.tables);
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -1992,20 +1994,160 @@ const StaffPanel = ({ staff, onLogout }) => {
     </button>
   );
 
+  // Masaüstü sidebar buton — sadece desktopActive iken render edilir
+  const SideBtn = ({ id, icon, label, badge }) => {
+    const isActive = isAdmin ? true : tab === id;
+    return (
+      <button
+        onClick={() => setTab(id)}
+        className={"sg-sidebar-btn" + (isActive ? " active" : "")}
+      >
+        <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>{icon}</span>
+        <span>{label}</span>
+        {badge > 0 && <span className="sg-sidebar-badge">{badge}</span>}
+      </button>
+    );
+  };
+
+  // Masaüstü sidebar — işletmeci & garson için ortak; admin kendi versiyonunu kullanır
+  const renderSidebar = (items, titleText, subText) => (
+    <aside className="sg-sidebar">
+      <div className="sg-sidebar-brand">
+        <div className="sg-sidebar-logo">
+          {logoUrl
+            ? <img src={logoUrl} alt="" />
+            : <span>{isAdmin ? "🔴" : isOwner ? "👔" : "👨‍🍳"}</span>}
+        </div>
+        <div className="sg-sidebar-venue">{titleText}</div>
+        <div className="sg-sidebar-role">{subText}</div>
+      </div>
+      <nav className="sg-sidebar-nav">
+        {items.map(it => (
+          <SideBtn key={it.id} id={it.id} icon={it.icon} label={it.label} badge={it.badge || 0} />
+        ))}
+      </nav>
+      <div className="sg-sidebar-footer">
+        <button
+          onClick={toggleCompact}
+          className="sg-sidebar-btn"
+          title="Dar (telefon) görünüme geç"
+        >
+          <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>⊡</span>
+          <span>Dar görünüm</span>
+        </button>
+        <button
+          onClick={onLogout}
+          className="sg-sidebar-btn"
+        >
+          <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>↩</span>
+          <span>Çıkış</span>
+        </button>
+      </div>
+    </aside>
+  );
+
+  // Masaüstü topbar — aktif sekmeye göre başlık değişir
+  const topbarTitles = {
+    bekleyen: { title: "⏳ Bekleyen Onaylar", sub: pending.length ? `${pending.length} masa onay bekliyor` : "Bekleyen kayıt yok" },
+    masalar:  { title: "🪑 Masa Yönetimi",    sub: `${active.length} aktif · ${tables.length} toplam masa` },
+    bildirim: { title: "🔔 Bildirimler",       sub: unread ? `${unread} okunmamış` : "Tümü okundu" },
+    yonetim:  { title: "⚙️ Yönetim",           sub: { ozet: "Günlük özet ve mekan bilgisi", menu: "Menü ve kategori yönetimi", qr: "Masa QR kodları", marka: "Tema ve marka ayarları" }[yTab] || "" },
+    venues:   { title: "🏢 Mekanlar",          sub: `${venues.length} kayıtlı mekan` },
+  };
+  const topbarNow = topbarTitles[tab] || { title: "", sub: "" };
+
+  const renderTopbar = () => (
+    <div className="sg-topbar">
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="sg-topbar-title">{topbarNow.title}</div>
+        <div className="sg-topbar-sub">{topbarNow.sub}</div>
+      </div>
+      {newTotal > 0 && !isAdmin && (
+        <div style={{ background: "var(--red)", color: "#fff", borderRadius: 20, padding: "4px 14px", fontSize: 13, fontWeight: 600, animation: "blink 1.4s ease-in-out infinite" }}>
+          {newTotal} yeni
+        </div>
+      )}
+      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+        {new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" })}
+      </div>
+    </div>
+  );
+
+
   /* ── SÜPER ADMİN PANELİ ── */
-  if (isAdmin) return (
+  if (isAdmin) {
+    const adminSideItems = [
+      { id: "venues", icon: "🏢", label: "Mekanlar" },
+    ];
+    // Admin için tab default'unu ayarla — ilk render'da tab "bekleyen" olabilir
+    const adminTab = tab === "venues" ? "venues" : "venues";
+    if (desktopActive) {
+      // Topbar başlığı venues için hazır
+      return (
+        <div className="sg-shell">
+          {renderSidebar(adminSideItems, "🔴 Süper Admin", staff.ad || "")}
+          <main className="sg-main">
+            <div className="sg-topbar">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="sg-topbar-title">🏢 Mekanlar</div>
+                <div className="sg-topbar-sub">{venues.length} kayıtlı mekan</div>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                {new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" })}
+              </div>
+            </div>
+            <div className="sg-content">
+              <div className="sg-yonetim-2col">
+                <div>
+                  <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 12 }}>Mekanlar ({venues.length})</div>
+                  <div className="sg-masa-grid">
+                    {venues.map(v => (
+                      <div key={v.id} style={{ ...card() }}>
+                        <div style={{ fontFamily: "var(--fh)", fontSize: 16, color: "var(--cream)" }}>{v.ad}</div>
+                        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Personel: {v.staff_count} · {v.aktif ? "Aktif" : "Pasif"}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 12 }}>Yeni Mekan Ekle</div>
+                  <div style={{ ...card({ border: "1px solid var(--gdim)" }) }}>
+                    {[["İşletme Adı", newVenue.venue_ad, v => setNewVenue({ ...newVenue, venue_ad: v })],
+                      ["Yetkili Adı Soyadı", newVenue.ad, v => setNewVenue({ ...newVenue, ad: v })],
+                      ["Telefon", newVenue.tel, v => setNewVenue({ ...newVenue, tel: v }), "tel"],
+                      ["E-posta (opsiyonel)", newVenue.email, v => setNewVenue({ ...newVenue, email: v }), "email"],
+                      ["Geçici Şifre", newVenue.gecici_sifre, v => setNewVenue({ ...newVenue, gecici_sifre: v }), "password"]
+                    ].map(([ph, val, fn, tp = "text"], i) => (
+                      <input key={i} type={tp} value={val} placeholder={ph} onChange={e => fn(e.target.value)} style={{ width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 8 }} />
+                    ))}
+                    {vMsg && <div style={{ fontSize: 13, color: "#3aaa6a", marginBottom: 8 }}>{vMsg}</div>}
+                    <button onClick={async () => {
+                      if (!newVenue.venue_ad || !newVenue.ad || !newVenue.tel || !newVenue.gecici_sifre) return;
+                      const r = await post("panel.php", { action: "venue_add", ...newVenue });
+                      if (r.ok) { setVMsg(`✅ ${r.venue_ad} oluşturuldu! İşletme linki: ${window.location.origin} — Tel: ${newVenue.tel} / Şifre: ${newVenue.gecici_sifre}`);  setNewVenue({ venue_ad: "", ad: "", tel: "", email: "", gecici_sifre: "" }); fetchAll(); }
+                      else setVMsg("❌ Hata: " + (r.error || "bilinmeyen"));
+                    }} style={{ width: "100%", padding: "11px", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 10, color: "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 }}>Mekan Oluştur</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      );
+    }
+    // Mobil / dar mod — mevcut layout korunuyor
+    return (
     <div style={{
       minHeight: "100vh",
-      height: desktopActive ? "auto" : "100vh",
+      height: "100vh",
       display: "flex", flexDirection: "column", background: "var(--bg)"
     }}>
       <div style={{
-        padding: desktopActive ? "14px 22px" : "13px 16px",
+        padding: "13px 16px",
         borderBottom: "1px solid var(--bord)", display: "flex", alignItems: "center", gap: 11,
         background: "var(--surf)", flexShrink: 0,
-        position: desktopActive ? "sticky" : "static", top: 0, zIndex: 20
       }}>
-        <div style={{ fontFamily: "var(--fh)", fontSize: desktopActive ? 20 : 17, color: "var(--cream)" }}>🔴 Süper Admin</div>
+        <div style={{ fontFamily: "var(--fh)", fontSize: 17, color: "var(--cream)" }}>🔴 Süper Admin</div>
         {isWide && (
           <button
             onClick={toggleCompact}
@@ -2017,7 +2159,7 @@ const StaffPanel = ({ staff, onLogout }) => {
         )}
         <button onClick={onLogout} style={{ marginLeft: isWide ? 0 : "auto", background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 13px", color: "var(--muted)", cursor: "pointer", fontSize: 13 }}>Çıkış</button>
       </div>
-      <div className="sg-content" style={{ flex: desktopActive ? "0 0 auto" : 1, overflowY: desktopActive ? "visible" : "auto", padding: desktopActive ? undefined : 14 }}>
+      <div className="sg-content" style={{ flex: 1, overflowY: "auto", padding: 14 }}>
         <div className="sg-yonetim-2col">
           <div>
             <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 12 }}>Mekanlar ({venues.length})</div>
@@ -2054,29 +2196,52 @@ const StaffPanel = ({ staff, onLogout }) => {
       </div>
     </div>
   );
+  }
 
   /* ── GARSON / İŞLETMECİ PANELİ ── */
+  // Sidebar menü öğeleri (owner için yönetim de var)
+  const ownerSideItems = [
+    { id: "bekleyen", icon: "⏳", label: "Bekleyen", badge: pending.length },
+    { id: "masalar",  icon: "🪑", label: "Masalar",  badge: newOrdsN },
+    { id: "bildirim", icon: "🔔", label: "Bildirim", badge: unread },
+    ...(isOwner ? [{ id: "yonetim", icon: "⚙️", label: "Yönetim" }] : []),
+  ];
+
   return (
-    <div style={{
-      minHeight: "100vh",
-      height: desktopActive ? "auto" : "100vh",
-      display: "flex",
-      flexDirection: "column",
-      background: "var(--bg)"
-    }}>
-      {/* Header */}
-      <div style={{
-        padding: desktopActive ? "14px 22px" : "12px 15px",
+    <div
+      className={desktopActive ? "sg-shell" : ""}
+      style={desktopActive ? {} : {
+        minHeight: "100vh",
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        background: "var(--bg)"
+      }}
+    >
+      {/* Masaüstü sidebar — sadece desktopActive iken görünür */}
+      {desktopActive && renderSidebar(
+        ownerSideItems,
+        staff.venue_ad,
+        isOwner ? "İşletmeci · " + staff.ad : "Garson · " + staff.ad
+      )}
+
+      <div
+        className={desktopActive ? "sg-main" : ""}
+        style={desktopActive ? {} : { display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
+      >
+      {/* Mobil header — desktopActive iken CSS ile gizlenir */}
+      {!desktopActive && (
+      <div className="sg-legacy-header" style={{
+        padding: "12px 15px",
         borderBottom: "1px solid var(--bord)",
         display: "flex", alignItems: "center", gap: 10,
         background: "var(--surf)", flexShrink: 0,
-        position: desktopActive ? "sticky" : "static", top: 0, zIndex: 20
       }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: "var(--fh)", fontSize: desktopActive ? 19 : 16, color: "var(--cream)" }}>
+          <div style={{ fontFamily: "var(--fh)", fontSize: 16, color: "var(--cream)" }}>
             {isOwner ? "👔" : "👨‍🍳"} {staff.ad}
           </div>
-          <div style={{ fontSize: desktopActive ? 12 : 11, color: "var(--muted)" }}>
+          <div style={{ fontSize: 11, color: "var(--muted)" }}>
             {staff.venue_ad} · {isOwner ? "İşletmeci" : "Garson"}
           </div>
         </div>
@@ -2100,22 +2265,25 @@ const StaffPanel = ({ staff, onLogout }) => {
         )}
         <button onClick={onLogout} style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 11px", color: "var(--muted)", cursor: "pointer", fontSize: 12 }}>Çıkış</button>
       </div>
+      )}
 
-      {/* Tabs */}
-      <div style={{
+      {/* Mobil tab bar — desktopActive iken gizli */}
+      {!desktopActive && (
+      <div className="sg-legacy-tabs" style={{
         display: "flex",
         borderBottom: "1px solid var(--bord)",
         background: "rgba(22,14,8,.95)",
         flexShrink: 0,
-        position: desktopActive ? "sticky" : "static",
-        top: desktopActive ? 66 : 0,
-        zIndex: 19
       }}>
         <TabBtn id="bekleyen"  label="⏳ Bekleyen"  badge={pending.length} />
         <TabBtn id="masalar"   label="🪑 Masalar"   badge={newOrdsN} />
         <TabBtn id="bildirim"  label="🔔 Bildirim"  badge={unread} />
         {isOwner && <TabBtn id="yonetim" label="⚙️ Yönetim" badge={0} />}
       </div>
+      )}
+
+      {/* Masaüstü topbar — sadece desktopActive iken görünür */}
+      {desktopActive && renderTopbar()}
 
       <div className="sg-content" style={{
         flex: desktopActive ? "0 0 auto" : 1,
@@ -2388,6 +2556,7 @@ const StaffPanel = ({ staff, onLogout }) => {
             )}
           </>
         )}
+      </div>
       </div>
 
 
