@@ -41,6 +41,42 @@ const playBeep = (f = 880, d = 0.3, n = 1) => {
 
 const qrUrl = (url) => `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(url)}&bgcolor=0b0704&color=e8b86d`;
 
+// Tema uygula — runtime'da CSS değişkenlerini günceller
+const applyTheme = (theme) => {
+  if (!theme) return;
+  const root = document.documentElement;
+  const p  = theme.tema_primary   || '#c9913a';
+  const s  = theme.tema_secondary || '#e8b86d';
+  const bg = theme.tema_bg        || '#0b0704';
+
+  // Ana renkler
+  root.style.setProperty('--gold',  p);
+  root.style.setProperty('--gsoft', s);
+  root.style.setProperty('--bg',    bg);
+
+  // Türetilmiş renkler (arka plan yüzey katmanları)
+  // bg'yi biraz açarak surf ve surf2 türet
+  const lighten = (hex, amt) => {
+    const h = hex.replace('#','');
+    if (h.length < 6) return hex;
+    const r = Math.min(255, parseInt(h.slice(0,2),16) + amt);
+    const g = Math.min(255, parseInt(h.slice(2,4),16) + amt);
+    const b = Math.min(255, parseInt(h.slice(4,6),16) + amt);
+    return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
+  };
+  root.style.setProperty('--surf',  lighten(bg, 11));
+  root.style.setProperty('--surf2', lighten(bg, 22));
+
+  // Primary'nin rgb'si (gdim, bord için)
+  const hexToRgb = (hex) => {
+    const h = hex.replace('#','');
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  };
+  const [pr, pg, pb] = hexToRgb(p);
+  root.style.setProperty('--bord', `rgba(${pr},${pg},${pb},0.15)`);
+  root.style.setProperty('--gdim', `rgba(${pr},${pg},${pb},0.22)`);
+};
+
 /* ── SMALL UI ────────────────────────────────────────────── */
 const Wave = ({ active }) => (
   <div style={{ display: "flex", gap: 3, alignItems: "center", height: 20 }}>
@@ -1454,6 +1490,180 @@ const QRManager = ({ tables, venueAd }) => {
 
 
 /* ══════════════════════════════════════════════════════════
+   TEMA EDİTÖRÜ — renk seçici + logo + önizleme
+══════════════════════════════════════════════════════════ */
+const TEMA_PRESETS = [
+  { name: "Klasik Altın",  primary: "#c9913a", secondary: "#e8b86d", bg: "#0b0704" },
+  { name: "Burgeron",      primary: "#f58220", secondary: "#ffd166", bg: "#0d0d0d" },
+  { name: "Modern Mavi",   primary: "#3a6fb0", secondary: "#7ba7d9", bg: "#0a0f1a" },
+  { name: "Doğal Yeşil",   primary: "#4a8f5c", secondary: "#8fc79a", bg: "#0a130d" },
+  { name: "Lavanta Mor",   primary: "#8b5fbf", secondary: "#c4a5e0", bg: "#0f0a15" },
+  { name: "Gül Kırmızı",   primary: "#c04060", secondary: "#e08a9e", bg: "#140a0d" },
+];
+
+const ColorInput = ({ label, value, onChange }) => (
+  <div style={{ flex:1, minWidth:0 }}>
+    <div style={{ fontSize:11, color:"var(--muted)", marginBottom:6 }}>{label}</div>
+    <div style={{ display:"flex", gap:6, alignItems:"center", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"5px 7px" }}>
+      <input type="color" value={value} onChange={e=>onChange(e.target.value)}
+        style={{ width:32, height:32, border:"none", background:"transparent", cursor:"pointer", padding:0, borderRadius:6, flexShrink:0 }} />
+      <input type="text" value={value} onChange={e=>onChange(e.target.value)}
+        style={{ flex:1, minWidth:0, width:"100%", background:"transparent", border:"none", color:"var(--cream)", fontSize:12, fontFamily:"monospace", outline:"none" }} />
+    </div>
+  </div>
+);
+
+const TemaEditor = ({ venueId }) => {
+  const [primary,   setPrimary]   = useState("#c9913a");
+  const [secondary, setSecondary] = useState("#e8b86d");
+  const [bg,        setBg]        = useState("#0b0704");
+  const [logo,      setLogo]      = useState("");
+  const [upLogo,    setUpLogo]    = useState(false);
+  const [loaded,    setLoaded]    = useState(false);
+  const [saved,     setSaved]     = useState(false);
+  const logoRef = useRef(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("sg_token") || "";
+    fetch(`${API}/panel.php?type=menu`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r=>r.json()).then(r => {
+        setPrimary(r.tema_primary     || "#c9913a");
+        setSecondary(r.tema_secondary || "#e8b86d");
+        setBg(r.tema_bg               || "#0b0704");
+        setLogo(r.logo_url            || "");
+        setLoaded(true);
+      }).catch(() => setLoaded(true));
+  }, [venueId]);
+
+  // Canlı önizleme — değer değişince siteye uygula
+  useEffect(() => {
+    if (!loaded) return;
+    applyTheme({ tema_primary: primary, tema_secondary: secondary, tema_bg: bg });
+  }, [primary, secondary, bg, loaded]);
+
+  const uploadLogo = async (file) => {
+    setUpLogo(true);
+    const fd = new FormData();
+    fd.append("image", file);
+    const token = localStorage.getItem("sg_token") || "";
+    fd.append("_token", token);
+    const r = await fetch(`${API}/upload.php`, {
+      method:"POST", headers:{ Authorization:`Bearer ${token}` }, body: fd
+    }).then(r=>r.json());
+    if (r.ok) setLogo(r.url);
+    setUpLogo(false);
+  };
+
+  const applyPreset = (p) => {
+    setPrimary(p.primary);
+    setSecondary(p.secondary);
+    setBg(p.bg);
+  };
+
+  const save = async () => {
+    const token = localStorage.getItem("sg_token") || "";
+    const r = await fetch(`${API}/panel.php`, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` },
+      body: JSON.stringify({
+        action: "theme_update",
+        tema_primary: primary, tema_secondary: secondary, tema_bg: bg,
+        logo_url: logo,
+        _token: token
+      })
+    }).then(r=>r.json());
+    if (r.ok) { setSaved(true); setTimeout(()=>setSaved(false), 2500); }
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <div style={{ padding:"14px 15px", background:"var(--surf2)", border:"1px solid var(--gdim)", borderRadius:14, marginBottom:14 }}>
+      <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--gsoft)", marginBottom:6 }}>🎨 Marka Ayarları</div>
+      <div style={{ fontSize:11, color:"var(--muted)", fontStyle:"italic", marginBottom:14 }}>
+        Müşterileriniz QR okuttuğunda bu renkleri ve logoyu görecek. Değişiklikler anında önizleme olarak yansır, kaydedince kalıcı olur.
+      </div>
+
+      {/* Hazır temalar */}
+      <div style={{ fontSize:11, color:"var(--muted)", marginBottom:8 }}>⚡ HAZIR TEMALAR</div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(92px,1fr))", gap:7, marginBottom:16 }}>
+        {TEMA_PRESETS.map((p,i) => (
+          <button key={i} onClick={()=>applyPreset(p)}
+            style={{ padding:"8px 6px", background:p.bg, border:`1px solid ${p.primary}66`, borderRadius:9, color:p.secondary, cursor:"pointer", fontSize:11, fontFamily:"var(--fh)", transition:"transform .15s" }}>
+            <div style={{ display:"flex", gap:3, justifyContent:"center", marginBottom:4 }}>
+              <span style={{ width:10, height:10, borderRadius:"50%", background:p.primary, display:"inline-block" }} />
+              <span style={{ width:10, height:10, borderRadius:"50%", background:p.secondary, display:"inline-block" }} />
+            </div>
+            {p.name}
+          </button>
+        ))}
+      </div>
+
+      {/* Renk seçiciler */}
+      <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+        <ColorInput label="Ana Renk"     value={primary}   onChange={setPrimary} />
+        <ColorInput label="İkincil Renk" value={secondary} onChange={setSecondary} />
+        <ColorInput label="Arkaplan"     value={bg}        onChange={setBg} />
+      </div>
+
+      {/* Logo */}
+      <div style={{ fontSize:11, color:"var(--muted)", marginBottom:7 }}>🖼️ LOGO</div>
+      {logo ? (
+        <div style={{ position:"relative", marginBottom:10, background:bg, borderRadius:14, padding:20, display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid var(--bord)" }}>
+          <img src={logo} alt="" style={{ maxWidth:"100%", maxHeight:110, objectFit:"contain" }} />
+          <button onClick={()=>setLogo("")} style={{ position:"absolute", top:8, right:8, width:26, height:26, borderRadius:"50%", background:"rgba(0,0,0,.7)", border:"none", color:"#fff", cursor:"pointer", fontSize:13 }}>✕</button>
+        </div>
+      ) : (
+        <div style={{ width:"100%", height:70, borderRadius:14, border:"2px dashed var(--bord)", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--muted)", fontSize:12, marginBottom:10 }}>
+          Henüz logo yok
+        </div>
+      )}
+      <input ref={logoRef} type="file" accept="image/*" style={{display:"none"}}
+        onChange={e=>{ const f=e.target.files?.[0]; if(f) uploadLogo(f); e.target.value=""; }} />
+      <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+        <button onClick={()=>logoRef.current?.click()} disabled={upLogo}
+          style={{ flex:1, padding:"8px", background:"rgba(201,145,58,.12)", border:"1px solid rgba(201,145,58,.35)", borderRadius:9, color:"var(--gsoft)", cursor:upLogo?"not-allowed":"pointer", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+          {upLogo ? <Spin /> : "📁 Logo Yükle"}
+        </button>
+        <button onClick={()=>{ const u=window.prompt("Logo URL:"); if(u?.trim()) setLogo(u.trim()); }}
+          style={{ flex:1, padding:"8px", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, color:"var(--muted)", cursor:"pointer", fontSize:12 }}>
+          🔗 URL
+        </button>
+      </div>
+
+      {/* Önizleme kutusu */}
+      <div style={{ fontSize:11, color:"var(--muted)", marginBottom:7 }}>👁️ ÖNİZLEME</div>
+      <div style={{ background:bg, borderRadius:14, padding:"18px 16px", border:`1px solid ${primary}33`, marginBottom:14 }}>
+        {logo && (
+          <div style={{ textAlign:"center", marginBottom:12 }}>
+            <img src={logo} alt="" style={{ maxWidth:120, maxHeight:60, objectFit:"contain" }} />
+          </div>
+        )}
+        <div style={{ fontFamily:"var(--fh)", fontSize:18, color:secondary, textAlign:"center", marginBottom:6 }}>
+          Hoş Geldiniz
+        </div>
+        <div style={{ fontSize:12, color:"#aaa", textAlign:"center", marginBottom:14 }}>
+          Masa 5 — Sipariş hazırlanıyor
+        </div>
+        <div style={{ display:"flex", gap:8, justifyContent:"center" }}>
+          <div style={{ padding:"8px 18px", background:`linear-gradient(135deg,${primary},${primary}aa)`, borderRadius:10, color:bg, fontSize:12, fontWeight:600 }}>
+            Menü
+          </div>
+          <div style={{ padding:"8px 18px", background:"transparent", border:`1px solid ${primary}`, borderRadius:10, color:secondary, fontSize:12 }}>
+            Hesap
+          </div>
+        </div>
+      </div>
+
+      {saved && <div style={{ fontSize:12, color:"#3aaa6a", marginBottom:8, textAlign:"center" }}>✅ Tema kaydedildi. Müşterileriniz QR okuttuğunda yeni görünümü görecek.</div>}
+      <button onClick={save} style={{ width:"100%", padding:"11px", background:`linear-gradient(135deg,${primary},${primary}aa)`, border:"none", borderRadius:10, color:bg, cursor:"pointer", fontFamily:"var(--fh)", fontSize:13, fontWeight:600 }}>
+        Temayı Kaydet
+      </button>
+    </div>
+  );
+};
+
+/* ══════════════════════════════════════════════════════════
    MEKAN BİLGİ EDİTÖRÜ
 ══════════════════════════════════════════════════════════ */
 const MekanBilgiEditor = ({ venueId }) => {
@@ -2019,7 +2229,7 @@ const StaffPanel = ({ staff, onLogout }) => {
           <>
             {/* Alt sekmeler */}
             <div style={{ display:"flex", gap:0, marginBottom:16, background:"var(--surf2)", borderRadius:12, padding:3 }}>
-              {[["ozet","📊 Özet"],["menu","📋 Menü"],["qr","🔲 QR"]].map(([id,label]) => (
+              {[["ozet","📊 Özet"],["menu","📋 Menü"],["qr","🔲 QR"],["marka","🎨 Marka"]].map(([id,label]) => (
                 <button key={id} onClick={()=>setYTab(id)} style={{ flex:1, padding:"9px 6px", background:yTab===id?"var(--surf)":"transparent", border:"none", borderRadius:10, cursor:"pointer", fontSize:12.5, color:yTab===id?"var(--gsoft)":"var(--muted)", fontWeight:yTab===id?600:400, transition:"all .2s" }}>{label}</button>
               ))}
             </div>
@@ -2061,6 +2271,10 @@ const StaffPanel = ({ staff, onLogout }) => {
 
             {yTab === "qr" && (
               <QRManager tables={tables} venueAd={staff.venue_ad} />
+            )}
+
+            {yTab === "marka" && (
+              <TemaEditor venueId={vid} />
             )}
           </>
         )}
@@ -2232,6 +2446,15 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem("sg_staff")); } catch { return null; }
   });
 
+  // Staff girişi olduğunda mekan temasını yükle
+  useEffect(() => {
+    if (!staff?.venue_id) return;
+    fetch(`${API}/panel.php?type=menu&venue_id=${staff.venue_id}`)
+      .then(r => r.json())
+      .then(m => applyTheme(m))
+      .catch(() => {});
+  }, [staff?.venue_id]);
+
   // Customer state
   const [qrInfo, setQrInfo]               = useState(null);
   const [session, setSession]             = useState(null);
@@ -2247,12 +2470,27 @@ export default function App() {
     if (!isCustomer) return;
     get(`session.php?qr=${qrToken}`).then(r => {
       if (r.error) { setQrError("Geçersiz veya süresi dolmuş QR kodu."); setQrLoading(false); return; }
-      const info = { venue_id: r.venue_id, venue_ad: r.venue_ad, masa_no: r.masa_no, table_id: r.table_id };
+
+      // ── Mekan temasını uygula (renkler + logo) ──
+      applyTheme(r);
+
+      const info = {
+        venue_id: r.venue_id,
+        venue_ad: r.venue_ad,
+        masa_no:  r.masa_no,
+        table_id: r.table_id,
+        logo_url: r.logo_url || "",
+      };
       setQrInfo(info);
       // Mekan görsellerini şimdiden çek (session_id henüz yok, venue_id ile)
       fetch(`${API}/panel.php?type=menu&venue_id=${r.venue_id}`)
         .then(res=>res.json())
-        .then(m=>{ if(m.gorsel_giris) setGorselGiris_(m.gorsel_giris); if(m.gorsel_tesekkur) setGorselTesekkur_(m.gorsel_tesekkur); })
+        .then(m=>{
+          if(m.gorsel_giris)    setGorselGiris_(m.gorsel_giris);
+          if(m.gorsel_tesekkur) setGorselTesekkur_(m.gorsel_tesekkur);
+          // Menüden gelen tema da uygula (yenilenmiş olabilir)
+          applyTheme(m);
+        })
         .catch(()=>{});
 
       // Backend'den gelen aktif oturum varsa onu kullan (QR tekrar okutma koruması)
