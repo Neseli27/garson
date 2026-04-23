@@ -163,6 +163,17 @@ const StaffLogin = ({ onLogin }) => {
     setLoading(false);
   };
 
+  // DEV MODE: şifresiz rol girişi — test için
+  const devLogin = async (rol) => {
+    setLoading(true); setErr("");
+    const r = await post("auth.php", { dev: true, rol });
+    if (r.error) { setErr(r.error); setLoading(false); return; }
+    localStorage.setItem("sg_token", r.token);
+    localStorage.setItem("sg_staff", JSON.stringify(r));
+    onLogin(r);
+    setLoading(false);
+  };
+
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 28 }}>
       <div style={{ position: "fixed", inset: 0, background: "radial-gradient(ellipse 70% 50% at 50% 30%, rgba(201,145,58,.06) 0%, transparent 70%)", pointerEvents: "none" }} />
@@ -176,6 +187,16 @@ const StaffLogin = ({ onLogin }) => {
         <button onClick={login} disabled={loading} style={{ width: "100%", padding: "14px", background: loading ? "var(--surf2)" : "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 12, color: loading ? "var(--muted)" : "#0b0704", cursor: loading ? "not-allowed" : "pointer", fontFamily: "var(--fh)", fontSize: 17, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
           {loading ? <Spin /> : "Giriş Yap →"}
         </button>
+
+        {/* ── DEV MODE: Hızlı rol girişi — canlıda kaldırılacak ── */}
+        <div style={{ marginTop: 28, paddingTop: 20, borderTop: "1px dashed var(--bord)" }}>
+          <div style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", marginBottom: 10, letterSpacing: 1 }}>🔧 TEST — ŞİFRESİZ GİRİŞ</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => devLogin("superadmin")} disabled={loading} style={{ flex: 1, padding: "10px 4px", background: "rgba(192,64,64,.12)", border: "1px solid rgba(192,64,64,.3)", borderRadius: 9, color: "#e06060", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🔴 Süper Admin</button>
+            <button onClick={() => devLogin("isletmeci")} disabled={loading} style={{ flex: 1, padding: "10px 4px", background: "rgba(201,145,58,.12)", border: "1px solid rgba(201,145,58,.3)", borderRadius: 9, color: "var(--gsoft)", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>👔 İşletmeci</button>
+            <button onClick={() => devLogin("garson")} disabled={loading} style={{ flex: 1, padding: "10px 4px", background: "rgba(58,138,92,.12)", border: "1px solid rgba(58,138,92,.3)", borderRadius: 9, color: "#3a8a5c", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>👨‍🍳 Garson</button>
+          </div>
+        </div>
       </div>
     </div>
   );
