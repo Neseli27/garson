@@ -1847,6 +1847,38 @@ const StaffPanel = ({ staff, onLogout }) => {
   const isOwner   = staff.rol === "isletmeci";
   const vid       = staff.venue_id;
 
+  // ── Layout modu: masaüstü/mobil (sadece işletmeci ve süperadmin için) ──
+  // isWide: sayfa geniş mi (900px+) — otomatik
+  // userCompact: işletmeci manuel dar modu seçmiş mi — localStorage'da
+  const [isWide, setIsWide] = useState(() => typeof window !== "undefined" && window.innerWidth >= 900);
+  const [userCompact, setUserCompact] = useState(() => localStorage.getItem("sg_compact") === "1");
+
+  useEffect(() => {
+    const onResize = () => setIsWide(window.innerWidth >= 900);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // İşletmeci/süperadmin için masaüstü layout aktif mi?
+  // Garson hep mobilde kalır.
+  const isWaiter = staff.rol === "garson";
+  const desktopActive = !isWaiter && isWide && !userCompact;
+
+  useEffect(() => {
+    if (desktopActive) {
+      document.body.setAttribute("data-layout", "desktop");
+    } else {
+      document.body.removeAttribute("data-layout");
+    }
+    return () => document.body.removeAttribute("data-layout");
+  }, [desktopActive]);
+
+  const toggleCompact = () => {
+    const newVal = !userCompact;
+    setUserCompact(newVal);
+    localStorage.setItem("sg_compact", newVal ? "1" : "0");
+  };
+
   const [tab, setTab]           = useState("bekleyen");
   const [sessions, setSessions] = useState([]);
   const [orders, setOrders]     = useState([]);
@@ -1962,37 +1994,62 @@ const StaffPanel = ({ staff, onLogout }) => {
 
   /* ── SÜPER ADMİN PANELİ ── */
   if (isAdmin) return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
-      <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--bord)", display: "flex", alignItems: "center", gap: 11, background: "var(--surf)", flexShrink: 0 }}>
-        <div style={{ fontFamily: "var(--fh)", fontSize: 17, color: "var(--cream)" }}>🔴 Süper Admin</div>
-        <button onClick={onLogout} style={{ marginLeft: "auto", background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 13px", color: "var(--muted)", cursor: "pointer", fontSize: 13 }}>Çıkış</button>
+    <div style={{
+      minHeight: "100vh",
+      height: desktopActive ? "auto" : "100vh",
+      display: "flex", flexDirection: "column", background: "var(--bg)"
+    }}>
+      <div style={{
+        padding: desktopActive ? "14px 22px" : "13px 16px",
+        borderBottom: "1px solid var(--bord)", display: "flex", alignItems: "center", gap: 11,
+        background: "var(--surf)", flexShrink: 0,
+        position: desktopActive ? "sticky" : "static", top: 0, zIndex: 20
+      }}>
+        <div style={{ fontFamily: "var(--fh)", fontSize: desktopActive ? 20 : 17, color: "var(--cream)" }}>🔴 Süper Admin</div>
+        {isWide && (
+          <button
+            onClick={toggleCompact}
+            title={userCompact ? "Geniş görünüme geç" : "Dar (telefon) görünüme geç"}
+            style={{ marginLeft:"auto", background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 11px", color: "var(--muted)", cursor: "pointer", fontSize: 13 }}
+          >
+            {userCompact ? "⛶ Geniş" : "⊡ Dar"}
+          </button>
+        )}
+        <button onClick={onLogout} style={{ marginLeft: isWide ? 0 : "auto", background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 13px", color: "var(--muted)", cursor: "pointer", fontSize: 13 }}>Çıkış</button>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
-        <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 12 }}>Mekanlar ({venues.length})</div>
-        {venues.map(v => (
-          <div key={v.id} style={{ ...card() }}>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 16, color: "var(--cream)" }}>{v.ad}</div>
-            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Personel: {v.staff_count} · {v.aktif ? "Aktif" : "Pasif"}</div>
+      <div className="sg-content" style={{ flex: desktopActive ? "0 0 auto" : 1, overflowY: desktopActive ? "visible" : "auto", padding: desktopActive ? undefined : 14 }}>
+        <div className="sg-yonetim-2col">
+          <div>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 12 }}>Mekanlar ({venues.length})</div>
+            <div className="sg-masa-grid">
+              {venues.map(v => (
+                <div key={v.id} style={{ ...card() }}>
+                  <div style={{ fontFamily: "var(--fh)", fontSize: 16, color: "var(--cream)" }}>{v.ad}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Personel: {v.staff_count} · {v.aktif ? "Aktif" : "Pasif"}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-        <div style={{ height: 1, background: "var(--bord)", margin: "16px 0" }} />
-        <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 12 }}>Yeni Mekan Ekle</div>
-        <div style={{ ...card({ border: "1px solid var(--gdim)" }) }}>
-          {[["İşletme Adı", newVenue.venue_ad, v => setNewVenue({ ...newVenue, venue_ad: v })],
-            ["Yetkili Adı Soyadı", newVenue.ad, v => setNewVenue({ ...newVenue, ad: v })],
-            ["Telefon", newVenue.tel, v => setNewVenue({ ...newVenue, tel: v }), "tel"],
-            ["E-posta (opsiyonel)", newVenue.email, v => setNewVenue({ ...newVenue, email: v }), "email"],
-            ["Geçici Şifre", newVenue.gecici_sifre, v => setNewVenue({ ...newVenue, gecici_sifre: v }), "password"]
-          ].map(([ph, val, fn, tp = "text"], i) => (
-            <input key={i} type={tp} value={val} placeholder={ph} onChange={e => fn(e.target.value)} style={{ width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 8 }} />
-          ))}
-          {vMsg && <div style={{ fontSize: 13, color: "#3aaa6a", marginBottom: 8 }}>{vMsg}</div>}
-          <button onClick={async () => {
-            if (!newVenue.venue_ad || !newVenue.ad || !newVenue.tel || !newVenue.gecici_sifre) return;
-            const r = await post("panel.php", { action: "venue_add", ...newVenue });
-            if (r.ok) { setVMsg(`✅ ${r.venue_ad} oluşturuldu! İşletme linki: ${window.location.origin} — Tel: ${newVenue.tel} / Şifre: ${newVenue.gecici_sifre}`);  setNewVenue({ venue_ad: "", ad: "", tel: "", email: "", gecici_sifre: "" }); fetchAll(); }
-            else setVMsg("❌ Hata: " + (r.error || "bilinmeyen"));
-          }} style={{ width: "100%", padding: "11px", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 10, color: "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 }}>Mekan Oluştur</button>
+          <div>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 12 }}>Yeni Mekan Ekle</div>
+            <div style={{ ...card({ border: "1px solid var(--gdim)" }) }}>
+              {[["İşletme Adı", newVenue.venue_ad, v => setNewVenue({ ...newVenue, venue_ad: v })],
+                ["Yetkili Adı Soyadı", newVenue.ad, v => setNewVenue({ ...newVenue, ad: v })],
+                ["Telefon", newVenue.tel, v => setNewVenue({ ...newVenue, tel: v }), "tel"],
+                ["E-posta (opsiyonel)", newVenue.email, v => setNewVenue({ ...newVenue, email: v }), "email"],
+                ["Geçici Şifre", newVenue.gecici_sifre, v => setNewVenue({ ...newVenue, gecici_sifre: v }), "password"]
+              ].map(([ph, val, fn, tp = "text"], i) => (
+                <input key={i} type={tp} value={val} placeholder={ph} onChange={e => fn(e.target.value)} style={{ width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 8 }} />
+              ))}
+              {vMsg && <div style={{ fontSize: 13, color: "#3aaa6a", marginBottom: 8 }}>{vMsg}</div>}
+              <button onClick={async () => {
+                if (!newVenue.venue_ad || !newVenue.ad || !newVenue.tel || !newVenue.gecici_sifre) return;
+                const r = await post("panel.php", { action: "venue_add", ...newVenue });
+                if (r.ok) { setVMsg(`✅ ${r.venue_ad} oluşturuldu! İşletme linki: ${window.location.origin} — Tel: ${newVenue.tel} / Şifre: ${newVenue.gecici_sifre}`);  setNewVenue({ venue_ad: "", ad: "", tel: "", email: "", gecici_sifre: "" }); fetchAll(); }
+                else setVMsg("❌ Hata: " + (r.error || "bilinmeyen"));
+              }} style={{ width: "100%", padding: "11px", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 10, color: "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 }}>Mekan Oluştur</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -2000,33 +2057,78 @@ const StaffPanel = ({ staff, onLogout }) => {
 
   /* ── GARSON / İŞLETMECİ PANELİ ── */
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
+    <div style={{
+      minHeight: "100vh",
+      height: desktopActive ? "auto" : "100vh",
+      display: "flex",
+      flexDirection: "column",
+      background: "var(--bg)"
+    }}>
       {/* Header */}
-      <div style={{ padding: "12px 15px", borderBottom: "1px solid var(--bord)", display: "flex", alignItems: "center", gap: 10, background: "var(--surf)", flexShrink: 0 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "var(--fh)", fontSize: 16, color: "var(--cream)" }}>{isOwner ? "👔" : "👨‍🍳"} {staff.ad}</div>
-          <div style={{ fontSize: 11, color: "var(--muted)" }}>{staff.venue_ad} · {isOwner ? "İşletmeci" : "Garson"}</div>
+      <div style={{
+        padding: desktopActive ? "14px 22px" : "12px 15px",
+        borderBottom: "1px solid var(--bord)",
+        display: "flex", alignItems: "center", gap: 10,
+        background: "var(--surf)", flexShrink: 0,
+        position: desktopActive ? "sticky" : "static", top: 0, zIndex: 20
+      }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: "var(--fh)", fontSize: desktopActive ? 19 : 16, color: "var(--cream)" }}>
+            {isOwner ? "👔" : "👨‍🍳"} {staff.ad}
+          </div>
+          <div style={{ fontSize: desktopActive ? 12 : 11, color: "var(--muted)" }}>
+            {staff.venue_ad} · {isOwner ? "İşletmeci" : "Garson"}
+          </div>
         </div>
-        {newTotal > 0 && <div style={{ background: "var(--red)", color: "#fff", borderRadius: 20, padding: "3px 12px", fontSize: 12, fontWeight: 600, animation: "blink 1.4s ease-in-out infinite" }}>{newTotal}</div>}
+        {newTotal > 0 && (
+          <div style={{ background: "var(--red)", color: "#fff", borderRadius: 20, padding: "3px 12px", fontSize: 12, fontWeight: 600, animation: "blink 1.4s ease-in-out infinite" }}>
+            {newTotal}
+          </div>
+        )}
+        {/* Masaüstü toggle — sadece geniş ekranda, işletmeci için */}
+        {!isWaiter && isWide && (
+          <button
+            onClick={toggleCompact}
+            title={userCompact ? "Geniş görünüme geç" : "Dar (telefon) görünüme geç"}
+            style={{
+              background: "none", border: "1px solid var(--bord)", borderRadius: 9,
+              padding: "6px 11px", color: "var(--muted)", cursor: "pointer", fontSize: 13
+            }}
+          >
+            {userCompact ? "⛶ Geniş" : "⊡ Dar"}
+          </button>
+        )}
         <button onClick={onLogout} style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 11px", color: "var(--muted)", cursor: "pointer", fontSize: 12 }}>Çıkış</button>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--bord)", background: "rgba(22,14,8,.95)", flexShrink: 0 }}>
+      <div style={{
+        display: "flex",
+        borderBottom: "1px solid var(--bord)",
+        background: "rgba(22,14,8,.95)",
+        flexShrink: 0,
+        position: desktopActive ? "sticky" : "static",
+        top: desktopActive ? 66 : 0,
+        zIndex: 19
+      }}>
         <TabBtn id="bekleyen"  label="⏳ Bekleyen"  badge={pending.length} />
         <TabBtn id="masalar"   label="🪑 Masalar"   badge={newOrdsN} />
         <TabBtn id="bildirim"  label="🔔 Bildirim"  badge={unread} />
         {isOwner && <TabBtn id="yonetim" label="⚙️ Yönetim" badge={0} />}
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
+      <div className="sg-content" style={{
+        flex: desktopActive ? "0 0 auto" : 1,
+        overflowY: desktopActive ? "visible" : "auto",
+        padding: desktopActive ? undefined : 14
+      }}>
         {loading && <div style={{ textAlign: "center", color: "var(--muted)", marginTop: 60 }}>Yükleniyor...</div>}
 
         {/* ── BEKLEYEN ── */}
         {!loading && tab === "bekleyen" && (
           pending.length === 0
             ? <div style={{ textAlign: "center", color: "var(--muted)", marginTop: 60 }}><div style={{ fontSize: 36 }}>✅</div><div style={{ marginTop: 12, fontSize: 14, fontStyle: "italic" }}>Bekleyen kayıt yok</div></div>
-            : pending.map(s => (
+            : <div className="sg-masa-grid">{pending.map(s => (
               <div key={s.id} style={{ ...card({ border: "1px solid rgba(58,106,154,.45)", animation: "bounce .4s ease-out" }) }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                   <div style={{ fontFamily: "var(--fh)", fontSize: 24, color: "var(--gsoft)" }}>Masa {s.masa_no}</div>
@@ -2037,7 +2139,7 @@ const StaffPanel = ({ staff, onLogout }) => {
                   {AB("✕ Reddet", () => sClose(s.id), "192,64,64")}
                 </div>
               </div>
-            ))
+            ))}</div>
         )}
 
         {/* ── MASALAR ── */}
@@ -2075,7 +2177,7 @@ const StaffPanel = ({ staff, onLogout }) => {
               </div>
             )}
 
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
+            <div className="sg-masa-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
               {tables.sort((a,b)=>a.masa_no-b.masa_no).map(t=>{
                 const ses   = active.find(s=>parseInt(s.masa_no)===parseInt(t.masa_no));
                 const sOrds = ses ? orders.filter(o=>String(o.session_id)===String(ses.id)) : [];
@@ -2175,6 +2277,7 @@ const StaffPanel = ({ staff, onLogout }) => {
                 </div>
               )}
 
+              <div className="sg-masa-grid">
               {unread.sort((a,b)=>b.created_at?.localeCompare(a.created_at)).map(n => {
                 const isBekliyor = n.type === "bekliyor";
                 const isGarson   = n.type === "garson";
@@ -2220,6 +2323,7 @@ const StaffPanel = ({ staff, onLogout }) => {
                   </div>
                 );
               })}
+              </div>
             </>
           );
         })()}
@@ -2236,32 +2340,38 @@ const StaffPanel = ({ staff, onLogout }) => {
 
             {/* ── ÖZET ── */}
             {yTab === "ozet" && <>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:18 }}>
+              <div className="sg-grid-4" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:18 }}>
                 {[{label:"Toplam Ciro",value:`${ciro}₺`,color:"var(--gsoft)"},{label:"Sipariş",value:todayOrds.length,color:"#6aaae0"},{label:"Aktif Masa",value:active.length,color:"#3aaa6a"},{label:"Bekleyen",value:orders.filter(o=>o.status!=="hazır").length,color:"#e06060"}].map((s,i)=>(
-                  <div key={i} style={{padding:"12px 14px",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12}}>
+                  <div key={i} style={{padding:"14px 16px",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12}}>
                     <div style={{fontSize:11,color:"var(--muted)",marginBottom:4}}>{s.label}</div>
-                    <div style={{fontFamily:"var(--fh)",fontSize:22,color:s.color}}>{s.value}</div>
+                    <div style={{fontFamily:"var(--fh)",fontSize:desktopActive?26:22,color:s.color}}>{s.value}</div>
                   </div>
                 ))}
               </div>
-              {topItems.length > 0 && (
-                <div style={{padding:"12px 14px",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12,marginBottom:14}}>
-                  <div style={{fontSize:11,color:"var(--muted)",marginBottom:10}}>🏆 EN ÇOK SATAN</div>
-                  {topItems.map(([ad,adet],i)=>(
-                    <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:14,color:"var(--cream)",padding:"4px 0",borderBottom:i<topItems.length-1?"1px solid var(--bord)":"none"}}>
-                      <span>{i===0?"🥇":i===1?"🥈":"🥉"} {ad}</span>
-                      <span style={{color:"var(--gsoft)"}}>{adet} adet</span>
+              {/* Masaüstünde: En çok satan + Mekan bilgi 2 sütun | Mobilde: alt alta */}
+              <div className="sg-yonetim-2col">
+                <div>
+                  {topItems.length > 0 && (
+                    <div style={{padding:"12px 14px",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12,marginBottom:14}}>
+                      <div style={{fontSize:11,color:"var(--muted)",marginBottom:10}}>🏆 EN ÇOK SATAN</div>
+                      {topItems.map(([ad,adet],i)=>(
+                        <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:14,color:"var(--cream)",padding:"4px 0",borderBottom:i<topItems.length-1?"1px solid var(--bord)":"none"}}>
+                          <span>{i===0?"🥇":i===1?"🥈":"🥉"} {ad}</span>
+                          <span style={{color:"var(--gsoft)"}}>{adet} adet</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                  {/* Şifre değiştir */}
+                  <div style={{...card({border:"1px solid var(--gdim)"})}}>
+                    <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--muted)",marginBottom:10}}>🔑 Şifre Değiştir</div>
+                    <ChangePassInline />
+                  </div>
                 </div>
-              )}
-              {/* Mekan bilgisi */}
-              <MekanBilgiEditor venueId={vid} />
-
-              {/* Şifre değiştir */}
-              <div style={{...card({border:"1px solid var(--gdim)"})}}>
-                <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--muted)",marginBottom:10}}>🔑 Şifre Değiştir</div>
-                <ChangePassInline />
+                <div>
+                  {/* Mekan bilgisi */}
+                  <MekanBilgiEditor venueId={vid} />
+                </div>
               </div>
             </>}
             {/* ── MENÜ ── */}
