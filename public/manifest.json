@@ -1,7 +1,7 @@
 {
   "name": "Sanal Garson",
   "short_name": "Garson",
-  "description": "Dijital garson uygulaması — QR ile sipariş, masa yönetimi, chat ile menü keşfi",
+  "description": "Kafe ve restoranlar için dijital garson — QR ile sipariş, garson, mutfak ve kasa ekranları",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

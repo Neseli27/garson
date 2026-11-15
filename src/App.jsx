@@ -23,6 +23,18 @@ const req = async (path, opts = {}) => {
       window.location.reload();
     }
   }
+  // v5: işletme askıya alınmış / lisansı dolmuş → mesajı göster, oturumu kapat
+  if (res.status === 403 && !path.startsWith("auth.php") && localStorage.getItem("sg_token")) {
+    const data = await res.json();
+    if (["ASKIDA", "LISANS", "YOK"].includes(data.code) && !_authFailed) {
+      _authFailed = true;
+      localStorage.removeItem("sg_token");
+      localStorage.removeItem("sg_staff");
+      alert(data.error || "İşletme hesabı kullanıma kapalı.");
+      window.location.reload();
+    }
+    return data;
+  }
   return res.json();
 };
 // GET: Authorization header bazı hostinglerde (Apache + CGI/FastCGI) PHP'ye iletilmez,
@@ -146,6 +158,71 @@ const Spin = () => <div style={{ width: 20, height: 20, borderRadius: "50%", bor
 /* ══════════════════════════════════════════════════════════
    STAFF LOGIN
 ══════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════
+   v5 — AÇILIŞ İNTROSU
+   Müşteride mekânın adı, logosu ve açılış görseliyle; personelde uygulama adıyla.
+   Sekme başına bir kez oynar, dokununca geçilir.
+══════════════════════════════════════════════════════════ */
+const Intro = ({ title, sub, logo, gorsel, ready = true, onDone }) => {
+  const [minOk, setMinOk] = useState(false);
+  const [out, setOut]     = useState(false);
+  const done = useRef(false);
+  const finish = useCallback(() => {
+    if (done.current) return;
+    done.current = true;
+    setOut(true);
+    setTimeout(onDone, 420);
+  }, [onDone]);
+  useEffect(() => {
+    const a = setTimeout(() => setMinOk(true), 2100); // en az bu kadar görünür
+    const b = setTimeout(finish, 4500);               // veri gelmese de en geç burada kapanır
+    return () => { clearTimeout(a); clearTimeout(b); };
+  }, [finish]);
+  useEffect(() => { if (minOk && ready) finish(); }, [minOk, ready, finish]);
+
+  return (
+    <div className="sg-intro" data-out={out ? "1" : "0"} onClick={finish} role="presentation">
+      {gorsel && <div className="sg-intro-bg" style={{ backgroundImage: `url(${gorsel})` }} />}
+      <div className="sg-intro-glow" />
+      <div className="sg-intro-mark">
+        <div className="sg-intro-ring" />
+        <div className="sg-intro-logo">
+          {logo ? <img src={logo} alt="" onError={e => { e.target.style.display = "none"; }} /> : <span>🍽️</span>}
+        </div>
+      </div>
+      <div className="sg-intro-title">{title}</div>
+      {sub && <div className="sg-intro-sub">{sub}</div>}
+      <div className="sg-intro-bar"><span /></div>
+    </div>
+  );
+};
+
+/* ══════════════════════════════════════════════════════════
+   v5 — PWA: "Uygulamayı Yükle"
+══════════════════════════════════════════════════════════ */
+let _installEvt = null;
+const _installSubs = new Set();
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); _installEvt = e; _installSubs.forEach(f => f(true)); });
+  window.addEventListener("appinstalled", () => { _installEvt = null; _installSubs.forEach(f => f(false)); });
+}
+const InstallButton = () => {
+  const [can, setCan] = useState(!!_installEvt);
+  useEffect(() => { _installSubs.add(setCan); return () => { _installSubs.delete(setCan); }; }, []);
+  const standalone = typeof window !== "undefined" && ((window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone);
+  if (standalone) return null;
+  if (can) return (
+    <button onClick={async () => { const e = _installEvt; if (!e) return; e.prompt(); try { await e.userChoice; } catch {} _installEvt = null; setCan(false); }}
+      style={{ width: "100%", marginTop: 12, padding: "12px", background: "none", border: "1px solid var(--gdim)", borderRadius: 12, color: "var(--gsoft)", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 14 }}>
+      📲 Uygulamayı Yükle
+    </button>
+  );
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) return (
+    <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--muted)", textAlign: "center", lineHeight: 1.5 }}>📲 Uygulama olarak eklemek için: Safari'de <strong>Paylaş</strong> → <strong>Ana Ekrana Ekle</strong></div>
+  );
+  return null;
+};
+
 const StaffLogin = ({ onLogin }) => {
   const [tel, setTel]     = useState("");
   const [pass, setPass]   = useState("");
@@ -176,6 +253,7 @@ const StaffLogin = ({ onLogin }) => {
         <button onClick={login} disabled={loading} style={{ width: "100%", padding: "14px", background: loading ? "var(--surf2)" : "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 12, color: loading ? "var(--muted)" : "#0b0704", cursor: loading ? "not-allowed" : "pointer", fontFamily: "var(--fh)", fontSize: 17, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
           {loading ? <Spin /> : "Giriş Yap →"}
         </button>
+        <InstallButton />
 
       </div>
     </div>
@@ -275,7 +353,7 @@ const ThankYouScreen = ({ venueAd, gorsel }) => (
 /* ══════════════════════════════════════════════════════════
    CUSTOMER: MENU VIEW (with cart)
 ══════════════════════════════════════════════════════════ */
-const MenuView = ({ menu, specials, cart, onAdd, onRemove, onOrder, orderLoading }) => {
+const MenuView = ({ menu, specials, cart, onAdd, onRemove, onOrder, orderLoading, note, onNote }) => {
   const [open, setOpen] = useState(Object.keys(menu)[0] || "");
   // Menü sonradan yüklenir: ilk kategori kendiliğinden açılsın (müşteri ürünleri hemen görsün)
   useEffect(() => { if (open === "" && Object.keys(menu).length) setOpen(Object.keys(menu)[0]); }, [menu]);
@@ -308,6 +386,13 @@ const MenuView = ({ menu, specials, cart, onAdd, onRemove, onOrder, orderLoading
           </button>
         </div>
       )}
+      {/* v5: siparişe özel not — garsona ve mutfağa iletilir */}
+      {cartCount > 0 && onNote && (
+        <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--bord)", background: "rgba(22,14,8,.6)", flexShrink: 0 }}>
+          <input value={note || ""} onChange={e => onNote(e.target.value)} maxLength={200} placeholder="📝 Sipariş notu (ör. az şekerli, soğansız, alerji…)"
+            style={{ width: "100%", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 10, padding: "9px 12px", color: "var(--cream)", fontSize: 14, outline: "none" }} />
+        </div>
+      )}
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
         {specials.length > 0 && (
           <div style={{ marginBottom: 14, padding: "13px 15px", background: "linear-gradient(135deg,rgba(201,145,58,.18) 0%,rgba(139,94,42,.08) 100%)", border: "1px solid rgba(201,145,58,.4)", borderRadius: 14 }}>
@@ -326,7 +411,7 @@ const MenuView = ({ menu, specials, cart, onAdd, onRemove, onOrder, orderLoading
             ))}
           </div>
         )}
-        {Object.entries(menu).map(([cat, items]) => (
+        {Object.entries(menu).filter(([, items]) => items.length > 0).map(([cat, items]) => (
           <div key={cat} style={{ marginBottom: 9 }}>
             <button onClick={() => setOpen(open === cat ? null : cat)} style={{ width: "100%", background: open === cat ? "var(--gdim)" : "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 10, padding: "11px 15px", color: "var(--cream)", cursor: "pointer", display: "flex", justifyContent: "space-between", fontFamily: "var(--fh)", fontSize: 14, transition: "all .2s" }}>
               <span>{cat}</span><span style={{ color: "var(--gold)", fontSize: 11 }}>{open === cat ? "▲" : "▼"}</span>
@@ -431,6 +516,7 @@ const HesapView = ({ session, tableOrders, venueId, onCallWaiter }) => {
                   <OrderBadge status={o.status} musteri size={12} />
                 </div>
                 <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 4 }}>{(o.urunler || []).map(u => `${u.adet}× ${u.ad}`).join(", ")}</div>
+                {o.notlar && o.notlar.replace("[Garson]", "").trim() && <div style={{ fontSize: 12.5, color: "#6aaae0", marginTop: 3, fontStyle: "italic" }}>📝 {o.notlar.replace("[Garson]", "").trim()}</div>}
               </div>
             ))}
           </>
@@ -485,6 +571,7 @@ const CustomerChat = ({ session, venueAd }) => {
   const [speaking, setSpeaking]   = useState(false);
   const [tab, setTab]             = useState("menu"); // v5: müşteri önce menüyü görür
   const [cart, setCart]           = useState([]);
+  const [cartNote, setCartNote]   = useState("");
   const [orderLoading, setOrderLoading] = useState(false);
   const [gorselGiris, setGorselGiris]       = useState("");
   const [gorselTesekkur, setGorselTesekkur] = useState("");
@@ -610,14 +697,14 @@ const CustomerChat = ({ session, venueAd }) => {
     const urunler = cart.map(c => ({ ad: c.name, adet: c.qty, fiyat: c.price, bekleme: c.wait || 5 }));
     const toplam  = cart.reduce((s, c) => s + c.price * c.qty, 0);
     try {
-      const r = await post("order.php", { action: "create", session_id: session.id, venue_id: session.venue_id, masa_no: session.masa_no, urunler, toplam, not: "" });
+      const r = await post("order.php", { action: "create", session_id: session.id, venue_id: session.venue_id, masa_no: session.masa_no, urunler, toplam, not: cartNote.trim() });
       if (r.error || !r.order) {
         alert(r.code === "INACTIVE" ? "Oturumunuz sona ermiş. Lütfen QR kodu yeniden okutun." : (r.error || "Sipariş gönderilemedi, tekrar deneyin."));
         setOrderLoading(false);
         return;
       }
       playBeep(660, .25, 2);
-      setCart([]);
+      setCart([]); setCartNote("");
       // Kesin liste ve tutar sunucudan gelir (fiyatlar menüden hesaplanır)
       const kesin = r.order.urunler || urunler;
       const summary = kesin.map(u => `${u.adet}× ${u.ad}`).join(", ");
@@ -664,7 +751,7 @@ const CustomerChat = ({ session, venueAd }) => {
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-        {tab === "menu" && <MenuView menu={menu} specials={specials} cart={cart} onAdd={addToCart} onRemove={removeFromCart} onOrder={submitCart} orderLoading={orderLoading} />}
+        {tab === "menu" && <MenuView menu={menu} specials={specials} cart={cart} onAdd={addToCart} onRemove={removeFromCart} onOrder={submitCart} orderLoading={orderLoading} note={cartNote} onNote={setCartNote} />}
         {tab === "hesap" && <HesapView session={session} tableOrders={tableOrders} venueId={session.venue_id} onCallWaiter={callWaiter} />}
         {tab === "chat" && (
           <div style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -924,7 +1011,8 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/panel.php?type=menu`, {
+      // all=1 → satışı durdurulmuş ürünler de gelir (yönetim görünümü)
+      const res = await fetch(`${API}/panel.php?type=menu&all=1&_token=${encodeURIComponent(token())}`, {
         headers: { Authorization: `Bearer ${token()}` },
       });
       const r = await res.json();
@@ -952,20 +1040,8 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
     setLoading(false);
   };
 
-  // Parent menu değişince local state'i güncelle (hayalet önleme)
-  useEffect(() => {
-    if (!parentMenu) return;
-    const allCats = Object.keys(parentMenu);
-    setCats(allCats);
-    const flat = allCats.flatMap(cat =>
-      (parentMenu[cat] || [])
-        .filter(i => i.name !== "__placeholder__")
-        .map(i => ({ ...i, cat }))
-    );
-    setItems(flat);
-    if (!pCat && allCats.length > 0) setPCat(allCats[0]);
-    setLoading(false);
-  }, [parentMenu]);
+  // v5: Liste yalnızca load() ile yenilenir. (Üst bileşenin 3 sn'de bir gelen menüsü
+  // sadece satıştaki ürünleri içerir; onunla eşitlemek durdurulan ürünleri listeden silerdi.)
 
   useEffect(() => { load(); }, []);
 
@@ -1032,6 +1108,7 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
       aciklama: editItem.desc || "",
       gorsel: editItem.img || "",
       aktif: editItem.aktif,
+      kategori: editItem.cat,
     });
     if (r.ok) { flash("✅ Güncellendi"); setEditItem(null); await load(); }
     else flash("❌ " + (r.error || "Hata"));
@@ -1043,6 +1120,18 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
     if (r.ok) { flash(item.aktif ? "⏸ Satış durduruldu" : "▶ Satışa açıldı"); await load(); }
     else flash("❌ " + (r.error || "Hata"));
   };
+
+  /* ── SIRALAMA / KATEGORİ ADI ── */
+  const moveItem = async (id, yon) => { const r = await apicall("menu_move", { id, yon }); if (r.ok) await load(); else flash("❌ " + (r.error || "Hata")); };
+  const moveCat  = async (kategori, yon) => { const r = await apicall("cat_move", { kategori, yon }); if (r.ok) await load(); else flash("❌ " + (r.error || "Hata")); };
+  const renameCat = async cat => {
+    const yeni = window.prompt(`"${cat}" kategorisinin yeni adı:`, cat);
+    if (!yeni || yeni.trim() === cat) return;
+    const r = await apicall("cat_rename", { kategori: cat, yeni: yeni.trim() });
+    if (r.ok) { flash("✅ Kategori adı değişti"); if (pCat === cat) setPCat(yeni.trim()); await load(); }
+    else flash("❌ " + (r.error || "Hata"));
+  };
+  const okBtn = { width: 26, height: 28, borderRadius: 7, background: "var(--surf)", border: "1px solid var(--bord)", color: "var(--muted)", cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 };
 
   const inp = (ph, val, set, type = "text") => (
     <input type={type} value={val} onChange={e => set(e.target.value)} placeholder={ph}
@@ -1104,7 +1193,9 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
                             {(item.aktif===0||item.aktif==="0") && <div style={{fontSize:11,color:"#e06060",marginTop:2}}>⏸ Satış durduruldu</div>}
                           </div>
                         </div>
-                        <div style={{display:"flex",gap:5,marginLeft:8}}>
+                        <div style={{display:"flex",gap:5,marginLeft:8,flexWrap:"wrap",justifyContent:"flex-end",maxWidth:"min(200px,40vw)"}}>
+                          <button onClick={()=>moveItem(item.id,"up")} title="Yukarı taşı" style={okBtn}>▲</button>
+                          <button onClick={()=>moveItem(item.id,"down")} title="Aşağı taşı" style={okBtn}>▼</button>
                           <button onClick={async()=>{
                             const r = await apicall("menu_feature",{id:item.id,value:item.one_cikan?0:1});
                             if(r.ok) await load();
@@ -1133,6 +1224,9 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
                   <span style={{fontFamily:"var(--fh)",fontSize:15,color:"var(--cream)"}}>{cat}</span>
                   <div style={{display:"flex",alignItems:"center",gap:10}}>
                     <span style={{fontSize:12,color:"var(--muted)"}}>{items.filter(i=>i.cat===cat).length} ürün</span>
+                    <button onClick={()=>moveCat(cat,"up")} title="Yukarı taşı" style={okBtn}>▲</button>
+                    <button onClick={()=>moveCat(cat,"down")} title="Aşağı taşı" style={okBtn}>▼</button>
+                    <button onClick={()=>renameCat(cat)} title="Adını değiştir" style={{...okBtn,color:"#6aaae0",fontSize:13}}>✎</button>
                     <button onClick={async()=>{
                       const n = items.filter(i=>i.cat===cat).length;
                       const msg = n > 0
@@ -1199,6 +1293,9 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
               <div style={{fontFamily:"var(--fh)",fontSize:17,color:"var(--cream)"}}>✎ Ürünü Düzenle</div>
               <button onClick={()=>setEditItem(null)} style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:22}}>✕</button>
             </div>
+            <select value={editItem.cat} onChange={e=>setEditItem({...editItem,cat:e.target.value})} style={{width:"100%",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:9,padding:"11px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:9}}>
+              {cats.map(cat=><option key={cat} value={cat}>{cat}</option>)}
+            </select>
             {[["Ürün adı",editItem.name,v=>setEditItem({...editItem,name:v})],
               ["Fiyat (₺)",editItem.price,v=>setEditItem({...editItem,price:v}),"number"],
               ["Süre (dk)",editItem.wait,v=>setEditItem({...editItem,wait:v}),"number"],
@@ -2346,6 +2443,258 @@ const CashierPanel = ({ staff, onLogout }) => {
 };
 
 /* ══════════════════════════════════════════════════════════
+   v5 — SÜPER ADMİN PANELİ (SaaS yönetimi)
+   İlk kayıt, lisans, askıya alma, düzenleme, şifre sıfırlama, silme
+══════════════════════════════════════════════════════════ */
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const trTarih = iso => iso ? iso.slice(0, 10).split("-").reverse().join(".") : "";
+const tarihEkle = (iso, { gun = 0, ay = 0 }) => {
+  // Uzatma, bugünden ya da (ileri bir tarihse) mevcut bitişten başlar
+  const bugun = new Date(); bugun.setHours(12, 0, 0, 0);
+  let d = iso ? new Date(iso + "T12:00:00") : bugun;
+  if (d < bugun) d = bugun;
+  d = new Date(d);
+  if (ay) d.setMonth(d.getMonth() + ay);
+  if (gun) d.setDate(d.getDate() + gun);
+  return ymd(d);
+};
+const SURELER = [["14g", "14 gün deneme", { gun: 14 }], ["1a", "1 ay", { ay: 1 }], ["3a", "3 ay", { ay: 3 }], ["12a", "1 yıl", { ay: 12 }], ["sinirsiz", "Süresiz", null]];
+
+const AdminPanel = ({ staff, onLogout }) => {
+  const [venues, setVenues]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr]         = useState("");
+  const [q, setQ]             = useState("");
+  const [filtre, setFiltre]   = useState("hepsi");
+  const [yeniAcik, setYeniAcik] = useState(false);
+  const [form, setForm]       = useState({ venue_ad: "", ad: "", tel: "", gecici_sifre: "", sure: "14g", masa_limit: "", notlar: "" });
+  const [msg, setMsg]         = useState(null);
+  const [modal, setModal]     = useState(null); // { tip, v, ...alanlar }
+  const [busy, setBusy]       = useState(false);
+  const [showPass, setShowPass] = useState(false);
+
+  useEffect(() => {
+    document.body.setAttribute("data-layout", "wide");
+    return () => document.body.removeAttribute("data-layout");
+  }, []);
+
+  const load = useCallback(async () => {
+    try {
+      const r = await get("panel.php?type=venues");
+      if (r.venues) { setVenues(r.venues); setErr(""); } else if (r.error) setErr(r.error);
+    } catch { setErr("Bağlantı sorunu"); }
+    setLoading(false);
+  }, []);
+  useEffect(() => { load(); const i = setInterval(load, 20000); return () => clearInterval(i); }, [load]);
+
+  const yakinda = v => v.durum === "aktif" && v.kalan_gun !== null && v.kalan_gun <= 7;
+  const say = {
+    hepsi: venues.length,
+    aktif: venues.filter(v => v.durum === "aktif").length,
+    yakinda: venues.filter(yakinda).length,
+    lisans_bitti: venues.filter(v => v.durum === "lisans_bitti").length,
+    askida: venues.filter(v => v.durum === "askida").length,
+  };
+  const liste = venues.filter(v => {
+    if (filtre === "yakinda" ? !yakinda(v) : (filtre !== "hepsi" && v.durum !== filtre)) return false;
+    const k = q.trim().toLocaleLowerCase("tr");
+    return !k || [v.ad, v.yetkili_ad, v.yetkili_tel, v.notlar].some(x => (x || "").toLocaleLowerCase("tr").includes(k));
+  });
+
+  const act = async (data, okMsg) => {
+    if (busy) return false;
+    setBusy(true);
+    const r = await post("panel.php", data);
+    setBusy(false);
+    if (r.error) { setMsg({ ok: false, text: "❌ " + r.error }); return false; }
+    if (okMsg) setMsg({ ok: true, text: okMsg });
+    await load();
+    return true;
+  };
+
+  const addVenue = async () => {
+    const sure = SURELER.find(x => x[0] === form.sure);
+    // Bitiş tarihini sunucu hesaplar (sunucu takvimine göre); süresizde ikisi de 0
+    const ok = await act({ action: "venue_add", venue_ad: form.venue_ad.trim(), ad: form.ad.trim(), tel: form.tel, gecici_sifre: form.gecici_sifre.trim(), lisans_gun: sure?.[2]?.gun || 0, lisans_ay: sure?.[2]?.ay || 0, masa_limit: parseInt(form.masa_limit) || 0, notlar: form.notlar.trim() },
+      `✅ ${form.venue_ad} oluşturuldu. Yetkiliye iletin → Adres: ${window.location.origin} · Telefon: ${form.tel} · Geçici şifre: ${form.gecici_sifre} (ilk girişte değiştirecek)`);
+    if (ok) { setForm({ venue_ad: "", ad: "", tel: "", gecici_sifre: "", sure: "14g", masa_limit: "", notlar: "" }); setYeniAcik(false); }
+  };
+  const formOk = form.venue_ad.trim().length > 1 && form.ad.trim().length > 1 && form.tel.replace(/\D/g, "").length >= 10 && form.gecici_sifre.trim().length >= 6;
+
+  const inp = { width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 8 };
+  const box = { padding: "14px 16px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 14 };
+  const mini = rgb => ({ padding: "7px 11px", background: `rgba(${rgb},.14)`, border: `1px solid rgba(${rgb},.4)`, borderRadius: 9, color: `rgb(${rgb})`, cursor: "pointer", fontSize: 12.5, whiteSpace: "nowrap" });
+  const gold = aktif => ({ padding: "12px", background: aktif ? "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)" : "var(--surf)", border: "none", borderRadius: 10, color: aktif ? "#0b0704" : "var(--muted)", cursor: aktif ? "pointer" : "not-allowed", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 });
+  const chip = (id, label, n, rgb) => (
+    <button key={id} onClick={() => setFiltre(id)} style={{ padding: "10px 12px", textAlign: "left", background: filtre === id ? `rgba(${rgb},.16)` : "var(--surf2)", border: `1px solid ${filtre === id ? `rgba(${rgb},.7)` : "var(--bord)"}`, borderRadius: 12, cursor: "pointer" }}>
+      <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>{label}</div>
+      <div style={{ fontFamily: "var(--fh)", fontSize: 22, color: `rgb(${rgb})` }}>{n}</div>
+    </button>
+  );
+  const durumBadge = v => {
+    const [l, rgb] = v.durum === "askida" ? ["⏸ Askıda", "224,96,96"] : v.durum === "lisans_bitti" ? ["⛔ Lisans bitti", "224,96,96"] : yakinda(v) ? ["⚠ Lisans bitiyor", "232,184,109"] : ["● Aktif", "58,170,106"];
+    return <span style={{ fontSize: 11.5, padding: "3px 10px", borderRadius: 20, fontWeight: 600, background: `rgba(${rgb},.16)`, color: `rgb(${rgb})`, whiteSpace: "nowrap" }}>{l}</span>;
+  };
+  const lisansYazi = v => v.lisans_bitis === null ? "Süresiz"
+    : v.kalan_gun < 0 ? `${trTarih(v.lisans_bitis)} · ${-v.kalan_gun} gün önce doldu`
+    : v.kalan_gun === 0 ? `${trTarih(v.lisans_bitis)} · bugün son gün`
+    : `${trTarih(v.lisans_bitis)} · ${v.kalan_gun} gün kaldı`;
+
+  const M = modal;
+  const kapat = () => { if (!busy) setModal(null); };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--bord)", display: "flex", alignItems: "center", gap: 10, background: "var(--surf)", flexShrink: 0, position: "sticky", top: 0, zIndex: 50 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: "var(--fh)", fontSize: 18, color: "var(--cream)" }}>🔴 Süper Admin <span style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>· Sanal Garson</span></div>
+          <div style={{ fontSize: 11.5, color: "var(--muted)" }}>{staff.ad}</div>
+        </div>
+        <button onClick={() => setShowPass(x => !x)} title="Şifre değiştir" style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 10px", color: "var(--muted)", cursor: "pointer", fontSize: 12 }}>🔑</button>
+        <button onClick={onLogout} style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 11px", color: "var(--muted)", cursor: "pointer", fontSize: 12 }}>Çıkış</button>
+      </div>
+      {showPass && <div style={{ padding: "12px 16px", background: "var(--surf2)", borderBottom: "1px solid var(--bord)" }}><div style={{ maxWidth: 360 }}><ChangePassInline /></div></div>}
+      {err && <div style={{ padding: "7px 15px", background: "rgba(192,64,64,.18)", color: "#e06060", fontSize: 12.5, textAlign: "center" }}>⚠️ {err}</div>}
+
+      <div style={{ flex: 1, padding: 16, maxWidth: 1240, width: "100%", margin: "0 auto" }}>
+        {/* Özet / filtre */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 9, marginBottom: 14 }}>
+          {chip("hepsi", "Tüm işletmeler", say.hepsi, "232,184,109")}
+          {chip("aktif", "Aktif", say.aktif, "58,170,106")}
+          {chip("yakinda", "7 günde bitecek", say.yakinda, "232,184,109")}
+          {chip("lisans_bitti", "Lisansı biten", say.lisans_bitti, "224,96,96")}
+          {chip("askida", "Askıda", say.askida, "224,96,96")}
+        </div>
+
+        <div style={{ display: "flex", gap: 9, marginBottom: 14, flexWrap: "wrap" }}>
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 İşletme, yetkili, telefon ara" style={{ ...inp, marginBottom: 0, flex: "1 1 220px", background: "var(--surf2)" }} />
+          <button onClick={() => { setYeniAcik(x => !x); setMsg(null); }} style={{ ...gold(true), padding: "10px 18px" }}>{yeniAcik ? "✕ Vazgeç" : "➕ Yeni İşletme"}</button>
+        </div>
+
+        {msg && <div style={{ padding: "10px 14px", marginBottom: 14, borderRadius: 11, fontSize: 13.5, lineHeight: 1.5, background: msg.ok ? "rgba(58,138,92,.14)" : "rgba(192,64,64,.14)", border: `1px solid ${msg.ok ? "rgba(58,138,92,.45)" : "rgba(192,64,64,.45)"}`, color: msg.ok ? "#3aaa6a" : "#e06060", display: "flex", gap: 10 }}><span style={{ flex: 1 }}>{msg.text}</span><button onClick={() => setMsg(null)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 15 }}>✕</button></div>}
+
+        {/* Yeni işletme (ilk kayıt) */}
+        {yeniAcik && (
+          <div style={{ ...box, border: "1px solid var(--gdim)", marginBottom: 16 }}>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 14, color: "var(--gsoft)", marginBottom: 10 }}>➕ Yeni İşletme Kaydı</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: "0 10px" }}>
+              <input value={form.venue_ad} onChange={e => setForm({ ...form, venue_ad: e.target.value })} placeholder="İşletme adı *" style={inp} />
+              <input value={form.ad} onChange={e => setForm({ ...form, ad: e.target.value })} placeholder="Yetkili adı soyadı *" style={inp} />
+              <input value={form.tel} onChange={e => setForm({ ...form, tel: e.target.value })} type="tel" placeholder="Yetkili telefonu * (giriş için)" style={inp} />
+              <input value={form.gecici_sifre} onChange={e => setForm({ ...form, gecici_sifre: e.target.value })} placeholder="Geçici şifre * (en az 6 karakter)" style={inp} />
+              <input value={form.masa_limit} onChange={e => setForm({ ...form, masa_limit: e.target.value })} type="number" min="0" placeholder="Masa limiti (boş = sınırsız)" style={inp} />
+              <input value={form.notlar} onChange={e => setForm({ ...form, notlar: e.target.value })} placeholder="Not (yalnızca siz görürsünüz)" style={inp} />
+            </div>
+            <div style={{ fontSize: 12, color: "var(--muted)", margin: "2px 0 6px" }}>Lisans süresi</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+              {SURELER.map(([id, label]) => (
+                <button key={id} onClick={() => setForm({ ...form, sure: id })} style={{ padding: "8px 13px", background: form.sure === id ? "var(--gdim)" : "var(--surf)", border: `1px solid ${form.sure === id ? "var(--gold)" : "var(--bord)"}`, borderRadius: 20, color: form.sure === id ? "var(--gsoft)" : "var(--muted)", cursor: "pointer", fontSize: 13 }}>{label}</button>
+              ))}
+            </div>
+            <button onClick={addVenue} disabled={!formOk || busy} style={{ ...gold(formOk && !busy), width: "100%" }}>{busy ? "Kaydediliyor…" : "İşletmeyi Oluştur"}</button>
+          </div>
+        )}
+
+        {loading && <div style={{ textAlign: "center", color: "var(--muted)", marginTop: 50 }}>Yükleniyor...</div>}
+        {!loading && liste.length === 0 && <div style={{ textAlign: "center", color: "var(--muted)", margin: "50px 0", fontStyle: "italic" }}>{venues.length === 0 ? "Henüz işletme yok. “Yeni İşletme” ile ilk kaydı oluşturun." : "Bu filtreye uyan işletme yok."}</div>}
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(340px,1fr))", gap: 12, alignItems: "start" }}>
+          {liste.map(v => (
+            <div key={v.id} style={{ ...box, border: `1px solid ${v.durum !== "aktif" ? "rgba(192,64,64,.45)" : yakinda(v) ? "rgba(201,145,58,.6)" : "var(--bord)"}`, opacity: v.durum === "askida" ? .82 : 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
+                <div style={{ fontFamily: "var(--fh)", fontSize: 18, color: "var(--cream)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{v.ad}</div>
+                {durumBadge(v)}
+              </div>
+              <div style={{ fontSize: 13.5, color: "var(--cream)", lineHeight: 1.75 }}>
+                <div>🔑 <span style={{ color: v.durum === "lisans_bitti" ? "#e06060" : yakinda(v) ? "var(--gsoft)" : "var(--cream)" }}>{lisansYazi(v)}</span></div>
+                <div>👔 {v.yetkili_ad || "—"} <span style={{ color: "var(--muted)" }}>· {v.yetkili_tel || "telefon yok"}</span></div>
+                <div style={{ color: "var(--muted)", fontSize: 12.5 }}>🪑 {v.masa_n}{v.masa_limit > 0 ? ` / ${v.masa_limit}` : ""} masa · 👥 {v.staff_count} personel · 📋 {v.urun_n} ürün</div>
+                <div style={{ color: "var(--muted)", fontSize: 12.5 }}>📈 Son 30 gün: {v.siparis_30} sipariş · {v.ciro_30}₺{v.son_siparis ? ` · son sipariş ${trTarih(v.son_siparis)}` : " · henüz sipariş yok"}</div>
+                <div style={{ color: "var(--muted)", fontSize: 12.5 }}>🗓 Kayıt: {trTarih(v.created_at)}</div>
+                {v.notlar && <div style={{ color: "#6aaae0", fontSize: 12.5, fontStyle: "italic" }}>📝 {v.notlar}</div>}
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 11 }}>
+                <button onClick={() => { setMsg(null); setModal({ tip: "lisans", v, lisans_bitis: v.lisans_bitis || "", masa_limit: v.masa_limit > 0 ? String(v.masa_limit) : "", notlar: v.notlar || "" }); }} style={mini("232,184,109")}>🔑 Lisans</button>
+                {v.aktif
+                  ? <button onClick={() => { setMsg(null); setModal({ tip: "askiya", v }); }} style={mini("224,150,60")}>⏸ Askıya al</button>
+                  : <button onClick={() => act({ action: "venue_toggle", id: v.id, aktif: 1 }, `▶ ${v.ad} yeniden açıldı.`)} style={mini("58,170,106")}>▶ Yeniden aç</button>}
+                <button onClick={() => { setMsg(null); setModal({ tip: "duzenle", v, ad: v.ad, yetkili_ad: v.yetkili_ad || "", yetkili_tel: v.yetkili_tel || "" }); }} style={mini("106,170,224")}>✎ Düzenle</button>
+                <button onClick={() => { setMsg(null); setModal({ tip: "sifre", v, sifre: "" }); }} style={mini("106,170,224")}>🔐 Şifre sıfırla</button>
+                <button onClick={() => { setMsg(null); setModal({ tip: "sil", v, onay: "" }); }} style={mini("224,96,96")}>🗑 Sil</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── İşlem pencereleri ── */}
+      {M && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.88)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 18, backdropFilter: "blur(4px)" }} onClick={kapat}>
+          <div style={{ width: "100%", maxWidth: 420, background: "var(--surf)", borderRadius: 20, padding: "22px 20px", animation: "fadeUp .3s ease-out", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 18, color: "var(--cream)", marginBottom: 2 }}>{{ lisans: "🔑 Lisans", askiya: "⏸ Askıya Al", duzenle: "✎ Düzenle", sifre: "🔐 Yetkili Şifresini Sıfırla", sil: "🗑 İşletmeyi Sil" }[M.tip]}</div>
+            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 14 }}>{M.v.ad}</div>
+
+            {M.tip === "lisans" && <>
+              <div style={{ fontSize: 13, color: "var(--cream)", marginBottom: 8 }}>Geçerli: <strong style={{ color: "var(--gsoft)" }}>{lisansYazi(M.v)}</strong></div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Uzat (bugünden ya da mevcut bitişten itibaren)</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                {[["+14 gün", { gun: 14 }], ["+1 ay", { ay: 1 }], ["+3 ay", { ay: 3 }], ["+6 ay", { ay: 6 }], ["+1 yıl", { ay: 12 }]].map(([l, d]) => (
+                  <button key={l} onClick={() => setModal({ ...M, lisans_bitis: tarihEkle(M.v.lisans_bitis, d) })} style={mini("232,184,109")}>{l}</button>
+                ))}
+                <button onClick={() => setModal({ ...M, lisans_bitis: "" })} style={mini("58,170,106")}>Süresiz</button>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Lisans bitiş tarihi (boş = süresiz; o gün dahil geçerli)</div>
+              <input type="date" value={M.lisans_bitis} onChange={e => setModal({ ...M, lisans_bitis: e.target.value })} style={{ ...inp, colorScheme: "dark" }} />
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Masa limiti (boş = sınırsız)</div>
+              <input type="number" min="0" value={M.masa_limit} onChange={e => setModal({ ...M, masa_limit: e.target.value })} placeholder="Sınırsız" style={inp} />
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Not (yalnızca siz görürsünüz)</div>
+              <textarea value={M.notlar} onChange={e => setModal({ ...M, notlar: e.target.value })} rows={2} maxLength={480} placeholder="Ör. ödeme durumu, paket, iletişim" style={{ ...inp, resize: "vertical", fontFamily: "inherit" }} />
+              <div style={{ fontSize: 13, color: "var(--gsoft)", margin: "2px 0 12px" }}>Yeni lisans: {M.lisans_bitis ? trTarih(M.lisans_bitis) + " tarihine kadar" : "Süresiz"}</div>
+            </>}
+
+            {M.tip === "askiya" && <div style={{ fontSize: 14, color: "var(--cream)", lineHeight: 1.6, marginBottom: 16 }}>
+              Askıya alınınca personel giriş yapamaz, açık oturumlar kapanır ve müşteriler QR okutunca “Bu işletme şu anda hizmet vermiyor” mesajını görür. <strong style={{ color: "var(--gsoft)" }}>Hiçbir veri silinmez</strong>; istediğiniz zaman yeniden açabilirsiniz.
+            </div>}
+
+            {M.tip === "duzenle" && <>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>İşletme adı</div>
+              <input value={M.ad} onChange={e => setModal({ ...M, ad: e.target.value })} style={inp} />
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Yetkili adı soyadı</div>
+              <input value={M.yetkili_ad} onChange={e => setModal({ ...M, yetkili_ad: e.target.value })} style={inp} />
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Yetkili telefonu (giriş için kullanılır)</div>
+              <input type="tel" value={M.yetkili_tel} onChange={e => setModal({ ...M, yetkili_tel: e.target.value })} style={inp} />
+            </>}
+
+            {M.tip === "sifre" && <>
+              <div style={{ fontSize: 13.5, color: "var(--cream)", lineHeight: 1.6, marginBottom: 10 }}>{M.v.yetkili_ad || "Yetkili"} ({M.v.yetkili_tel || "—"}) için geçici şifre belirleyin. Açık oturumu kapanır; ilk girişte kendi şifresini belirler.</div>
+              <input value={M.sifre} onChange={e => setModal({ ...M, sifre: e.target.value })} placeholder="Geçici şifre (en az 6 karakter)" style={inp} autoFocus />
+            </>}
+
+            {M.tip === "sil" && <>
+              <div style={{ fontSize: 13.5, color: "#e06060", lineHeight: 1.6, marginBottom: 10 }}>
+                Bu işlem <strong>geri alınamaz</strong>. İşletmenin personeli, masaları ve QR kodları, menüsü, görselleri ve tüm sipariş geçmişi ({M.v.siparis_n} sipariş) kalıcı olarak silinir. Veriyi korumak istiyorsanız silmek yerine askıya alın.
+              </div>
+              <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 5 }}>Onaylamak için işletme adını yazın: <strong style={{ color: "var(--cream)" }}>{M.v.ad}</strong></div>
+              <input value={M.onay} onChange={e => setModal({ ...M, onay: e.target.value })} placeholder={M.v.ad} style={inp} autoFocus />
+            </>}
+
+            {msg && !msg.ok && <div style={{ fontSize: 13, color: "#e06060", marginBottom: 10 }}>{msg.text}</div>}
+            <div style={{ display: "flex", gap: 9 }}>
+              <button onClick={kapat} disabled={busy} style={{ flex: 1, padding: "12px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 10, color: "var(--muted)", cursor: "pointer", fontSize: 14 }}>Vazgeç</button>
+              {M.tip === "lisans" && <button disabled={busy} onClick={async () => { if (await act({ action: "venue_license", id: M.v.id, lisans_bitis: M.lisans_bitis, masa_limit: parseInt(M.masa_limit) || 0, notlar: M.notlar.trim() }, `✅ ${M.v.ad}: lisans ${M.lisans_bitis ? trTarih(M.lisans_bitis) + " tarihine kadar" : "süresiz"}.`)) setModal(null); }} style={{ ...gold(!busy), flex: 2 }}>Lisansı Kaydet</button>}
+              {M.tip === "askiya" && <button disabled={busy} onClick={async () => { if (await act({ action: "venue_toggle", id: M.v.id, aktif: 0 }, `⏸ ${M.v.ad} askıya alındı.`)) setModal(null); }} style={{ ...gold(!busy), flex: 2 }}>Askıya Al</button>}
+              {M.tip === "duzenle" && <button disabled={busy || M.ad.trim().length < 2} onClick={async () => { if (await act({ action: "venue_edit", id: M.v.id, ad: M.ad.trim(), yetkili_ad: M.yetkili_ad.trim(), yetkili_tel: M.yetkili_tel }, "✅ Bilgiler güncellendi.")) setModal(null); }} style={{ ...gold(!busy && M.ad.trim().length >= 2), flex: 2 }}>Kaydet</button>}
+              {M.tip === "sifre" && <button disabled={busy || M.sifre.trim().length < 6} onClick={async () => { if (await act({ action: "venue_owner_pass", id: M.v.id, sifre: M.sifre.trim() }, `✅ ${M.v.ad} yetkilisi için geçici şifre: ${M.sifre.trim()} (Telefon: ${M.v.yetkili_tel || "—"})`)) setModal(null); }} style={{ ...gold(!busy && M.sifre.trim().length >= 6), flex: 2 }}>Şifreyi Sıfırla</button>}
+              {M.tip === "sil" && <button disabled={busy || M.onay.trim() !== M.v.ad} onClick={async () => { if (await act({ action: "venue_del", id: M.v.id, onay: M.onay.trim() }, `🗑 ${M.v.ad} kalıcı olarak silindi.`)) setModal(null); }} style={{ flex: 2, padding: "12px", background: M.onay.trim() === M.v.ad && !busy ? "rgba(192,64,64,.85)" : "var(--surf2)", border: "none", borderRadius: 10, color: M.onay.trim() === M.v.ad && !busy ? "#fff" : "var(--muted)", cursor: M.onay.trim() === M.v.ad ? "pointer" : "not-allowed", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 }}>Kalıcı Olarak Sil</button>}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ══════════════════════════════════════════════════════════
    STAFF PANEL
 ══════════════════════════════════════════════════════════ */
 const StaffPanel = ({ staff, onLogout }) => {
@@ -2397,6 +2746,7 @@ const StaffPanel = ({ staff, onLogout }) => {
   const [garsonOrder, setGarsonOrder] = useState(null);
   const [garsonCart, setGarsonCart]   = useState([]);
   const [garsonLoading, setGarsonLoading] = useState(false);
+  const [garsonNote, setGarsonNote] = useState("");
   const [masaPopup, setMasaPopup] = useState(null); // popup için seçili masa/oturum
   const [mergeMode, setMergeMode]   = useState(false); // masa birleştirme modu
   const [newMasa, setNewMasa] = useState(""); // masa ekleme input
@@ -2406,6 +2756,7 @@ const StaffPanel = ({ staff, onLogout }) => {
   const [logoUrl, setLogoUrl]   = useState(""); // Mekan logosu (sidebar için)
   const [me, setMe]             = useState({ id: staff.id || null, rol: staff.rol });
   const [roller, setRoller]     = useState({ mutfak: true, kasa: true }); // mekânda mutfak / kasa hesabı var mı
+  const [lisans, setLisans]     = useState(null); // { bitis, kalan_gun }
 
   // Süper admin state
   const [venues, setVenues]     = useState([]);
@@ -2433,6 +2784,7 @@ const StaffPanel = ({ staff, onLogout }) => {
       if (p.notifications) setNotifs(p.notifications);
       if (p.me) setMe(p.me);
       if (p.roller) setRoller(p.roller);
+      if (p.lisans) setLisans(p.lisans);
       if (m.menu !== undefined) { setMenu(m.menu); }
       if (m.specials !== undefined) setSpecials(m.specials || []);
       if (m.logo_url !== undefined) setLogoUrl(m.logo_url || "");
@@ -2498,9 +2850,9 @@ const StaffPanel = ({ staff, onLogout }) => {
     setGarsonLoading(true);
     const urunler = garsonCart.map(c => ({ ad: c.name, adet: c.qty, fiyat: c.price, bekleme: c.wait || 5 }));
     const toplam = garsonCart.reduce((s, c) => s + c.price * c.qty, 0);
-    const r = await post("order.php", { action: "create", session_id: garsonOrder.id, venue_id: vid, masa_no: garsonOrder.masa_no, urunler, toplam, not: "[Garson]" });
+    const r = await post("order.php", { action: "create", session_id: garsonOrder.id, venue_id: vid, masa_no: garsonOrder.masa_no, urunler, toplam, not: garsonNote.trim() });
     if (r.error) { alert(r.error); setGarsonLoading(false); fetchAll(); return; }
-    setGarsonCart([]); setGarsonOrder(null); playBeep(660, .25, 2); fetchAll();
+    setGarsonCart([]); setGarsonOrder(null); setGarsonNote(""); playBeep(660, .25, 2); fetchAll();
     setGarsonLoading(false);
   };
 
@@ -2654,130 +3006,6 @@ const StaffPanel = ({ staff, onLogout }) => {
   );
 
 
-  /* ── SÜPER ADMİN PANELİ ── */
-  if (isAdmin) {
-    const adminSideItems = [
-      { id: "venues", icon: "🏢", label: "Mekanlar" },
-    ];
-    // Admin için tab default'unu ayarla — ilk render'da tab "bekleyen" olabilir
-    const adminTab = tab === "venues" ? "venues" : "venues";
-    if (desktopActive) {
-      // Topbar başlığı venues için hazır
-      return (
-        <div className="sg-shell">
-          {renderSidebar(adminSideItems, "🔴 Süper Admin", staff.ad || "")}
-          <main className="sg-main">
-            <div className="sg-topbar">
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="sg-topbar-title">🏢 Mekanlar</div>
-                <div className="sg-topbar-sub">{venues.length} kayıtlı mekan</div>
-              </div>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                {new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" })}
-              </div>
-            </div>
-            <div className="sg-content">
-              <div className="sg-yonetim-2col">
-                <div>
-                  <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 12 }}>Mekanlar ({venues.length})</div>
-                  <div className="sg-masa-grid">
-                    {venues.map(v => (
-                      <div key={v.id} style={{ ...card() }}>
-                        <div style={{ fontFamily: "var(--fh)", fontSize: 16, color: "var(--cream)" }}>{v.ad}</div>
-                        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Personel: {v.staff_count} · {v.aktif ? "Aktif" : "Pasif"}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 12 }}>Yeni Mekan Ekle</div>
-                  <div style={{ ...card({ border: "1px solid var(--gdim)" }) }}>
-                    {[["İşletme Adı", newVenue.venue_ad, v => setNewVenue({ ...newVenue, venue_ad: v })],
-                      ["Yetkili Adı Soyadı", newVenue.ad, v => setNewVenue({ ...newVenue, ad: v })],
-                      ["Telefon", newVenue.tel, v => setNewVenue({ ...newVenue, tel: v }), "tel"],
-                      ["E-posta (opsiyonel)", newVenue.email, v => setNewVenue({ ...newVenue, email: v }), "email"],
-                      ["Geçici Şifre", newVenue.gecici_sifre, v => setNewVenue({ ...newVenue, gecici_sifre: v }), "password"]
-                    ].map(([ph, val, fn, tp = "text"], i) => (
-                      <input key={i} type={tp} value={val} placeholder={ph} onChange={e => fn(e.target.value)} style={{ width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 8 }} />
-                    ))}
-                    {vMsg && <div style={{ fontSize: 13, color: "#3aaa6a", marginBottom: 8 }}>{vMsg}</div>}
-                    <button onClick={async () => {
-                      if (!newVenue.venue_ad || !newVenue.ad || !newVenue.tel || !newVenue.gecici_sifre) return;
-                      const r = await post("panel.php", { action: "venue_add", ...newVenue });
-                      if (r.ok) { setVMsg(`✅ ${r.venue_ad} oluşturuldu! İşletme linki: ${window.location.origin} — Tel: ${newVenue.tel} / Şifre: ${newVenue.gecici_sifre}`);  setNewVenue({ venue_ad: "", ad: "", tel: "", email: "", gecici_sifre: "" }); fetchAll(); }
-                      else setVMsg("❌ Hata: " + (r.error || "bilinmeyen"));
-                    }} style={{ width: "100%", padding: "11px", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 10, color: "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 }}>Mekan Oluştur</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </main>
-        </div>
-      );
-    }
-    // Mobil / dar mod — mevcut layout korunuyor
-    return (
-    <div style={{
-      minHeight: "100vh",
-      height: "100vh",
-      display: "flex", flexDirection: "column", background: "var(--bg)"
-    }}>
-      <div style={{
-        padding: "13px 16px",
-        borderBottom: "1px solid var(--bord)", display: "flex", alignItems: "center", gap: 11,
-        background: "var(--surf)", flexShrink: 0,
-      }}>
-        <div style={{ fontFamily: "var(--fh)", fontSize: 17, color: "var(--cream)" }}>🔴 Süper Admin</div>
-        {isWide && (
-          <button
-            onClick={toggleCompact}
-            title={userCompact ? "Geniş görünüme geç" : "Dar (telefon) görünüme geç"}
-            style={{ marginLeft:"auto", background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 11px", color: "var(--muted)", cursor: "pointer", fontSize: 13 }}
-          >
-            {userCompact ? "⛶ Geniş" : "⊡ Dar"}
-          </button>
-        )}
-        <button onClick={onLogout} style={{ marginLeft: isWide ? 0 : "auto", background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 13px", color: "var(--muted)", cursor: "pointer", fontSize: 13 }}>Çıkış</button>
-      </div>
-      <div className="sg-content" style={{ flex: 1, overflowY: "auto", padding: 14 }}>
-        <div className="sg-yonetim-2col">
-          <div>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 12 }}>Mekanlar ({venues.length})</div>
-            <div className="sg-masa-grid">
-              {venues.map(v => (
-                <div key={v.id} style={{ ...card() }}>
-                  <div style={{ fontFamily: "var(--fh)", fontSize: 16, color: "var(--cream)" }}>{v.ad}</div>
-                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Personel: {v.staff_count} · {v.aktif ? "Aktif" : "Pasif"}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 12 }}>Yeni Mekan Ekle</div>
-            <div style={{ ...card({ border: "1px solid var(--gdim)" }) }}>
-              {[["İşletme Adı", newVenue.venue_ad, v => setNewVenue({ ...newVenue, venue_ad: v })],
-                ["Yetkili Adı Soyadı", newVenue.ad, v => setNewVenue({ ...newVenue, ad: v })],
-                ["Telefon", newVenue.tel, v => setNewVenue({ ...newVenue, tel: v }), "tel"],
-                ["E-posta (opsiyonel)", newVenue.email, v => setNewVenue({ ...newVenue, email: v }), "email"],
-                ["Geçici Şifre", newVenue.gecici_sifre, v => setNewVenue({ ...newVenue, gecici_sifre: v }), "password"]
-              ].map(([ph, val, fn, tp = "text"], i) => (
-                <input key={i} type={tp} value={val} placeholder={ph} onChange={e => fn(e.target.value)} style={{ width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 8 }} />
-              ))}
-              {vMsg && <div style={{ fontSize: 13, color: "#3aaa6a", marginBottom: 8 }}>{vMsg}</div>}
-              <button onClick={async () => {
-                if (!newVenue.venue_ad || !newVenue.ad || !newVenue.tel || !newVenue.gecici_sifre) return;
-                const r = await post("panel.php", { action: "venue_add", ...newVenue });
-                if (r.ok) { setVMsg(`✅ ${r.venue_ad} oluşturuldu! İşletme linki: ${window.location.origin} — Tel: ${newVenue.tel} / Şifre: ${newVenue.gecici_sifre}`);  setNewVenue({ venue_ad: "", ad: "", tel: "", email: "", gecici_sifre: "" }); fetchAll(); }
-                else setVMsg("❌ Hata: " + (r.error || "bilinmeyen"));
-              }} style={{ width: "100%", padding: "11px", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 10, color: "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 }}>Mekan Oluştur</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-  }
-
   /* ── GARSON / İŞLETMECİ PANELİ ── */
   // Sidebar menü öğeleri (owner için yönetim de var)
   const ownerSideItems = [
@@ -2871,6 +3099,13 @@ const StaffPanel = ({ staff, onLogout }) => {
         padding: desktopActive ? undefined : 14
       }}>
         {loading && <div style={{ textAlign: "center", color: "var(--muted)", marginTop: 60 }}>Yükleniyor...</div>}
+
+        {/* ── v5: Lisans bitişine 7 gün kala işletmeciye uyarı ── */}
+        {!loading && isOwner && lisans && lisans.kalan_gun !== null && lisans.kalan_gun <= 7 && (
+          <div style={{ padding: "10px 14px", marginBottom: 14, borderRadius: 12, background: "rgba(201,145,58,.14)", border: "1px solid rgba(201,145,58,.55)", fontSize: 13.5, color: "var(--gsoft)" }}>
+            🔑 Lisansınız {lisans.kalan_gun === 0 ? "bugün" : `${lisans.kalan_gun} gün sonra`} sona eriyor ({lisans.bitis?.split("-").reverse().join(".")}). Süre dolunca sistem kullanıma kapanır; yenilemek için hizmet sağlayıcınızla iletişime geçin.
+          </div>
+        )}
 
         {/* ── v5: Geciken teyit uyarısı — her sekmede görünür ── */}
         {!loading && geciken.length > 0 && (
@@ -3285,7 +3520,7 @@ const StaffPanel = ({ staff, onLogout }) => {
               </div>
             )}
             <div style={{ flex: 1, overflowY: "auto", marginBottom: 10 }}>
-              {Object.entries(menu).map(([cat, items]) => (
+              {Object.entries(menu).filter(([, items]) => items.length > 0).map(([cat, items]) => (
                 <div key={cat} style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 5, letterSpacing: .8 }}>{cat}</div>
                   {items.map(item => {
@@ -3309,6 +3544,8 @@ const StaffPanel = ({ staff, onLogout }) => {
                 </div>
               ))}
             </div>
+            <input value={garsonNote} onChange={e => setGarsonNote(e.target.value)} maxLength={200} placeholder="📝 Mutfağa not (isteğe bağlı)"
+              style={{ width: "100%", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 10, padding: "9px 12px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 10, flexShrink: 0 }} />
             <button onClick={garsonSubmit} disabled={!garsonCart.length || garsonLoading} style={{ width: "100%", padding: "13px", background: garsonCart.length ? "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)" : "var(--surf2)", border: "none", borderRadius: 13, color: garsonCart.length ? "#0b0704" : "var(--muted)", cursor: garsonCart.length ? "pointer" : "not-allowed", fontFamily: "var(--fh)", fontSize: 15, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
               {garsonLoading ? <Spin /> : `🛎 Gönder${garsonCart.length ? " (" + garsonCart.reduce((s, c) => s + c.price * c.qty, 0) + "₺)" : ""}`}
             </button>
@@ -3374,7 +3611,7 @@ export default function App() {
   useEffect(() => {
     if (!isCustomer) return;
     get(`session.php?qr=${qrToken}`).then(r => {
-      if (r.error) { setQrError("Geçersiz veya süresi dolmuş QR kodu."); setQrLoading(false); return; }
+      if (r.error) { setQrError(r.code === "KAPALI" ? "Bu işletme şu anda hizmet vermiyor." : "Geçersiz veya süresi dolmuş QR kodu."); setQrLoading(false); return; }
 
       // ── Mekan temasını uygula (renkler + logo) ──
       applyTheme(r);
@@ -3469,6 +3706,11 @@ export default function App() {
 
   // ── RENDER ──────────────────────────────────────────────
 
+  // v5: açılış introsu — sekme başına bir kez
+  const [intro, setIntro] = useState(() => { try { return !sessionStorage.getItem("sg_intro"); } catch { return true; } });
+  const endIntro = useCallback(() => { try { sessionStorage.setItem("sg_intro", "1"); } catch {} setIntro(false); }, []);
+
+  const renderScreen = () => {
   // Müşteri akışı
   if (isCustomer) {
     if (qrLoading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}><Spin /></div>;
@@ -3483,7 +3725,18 @@ export default function App() {
   // Personel akışı
   if (!staff) return <StaffLogin onLogin={setStaff} />;
   if (staff.gecici) return <ChangePassword staff={staff} onDone={updated => setStaff(updated)} />;
+  if (staff.rol === "superadmin") return <AdminPanel staff={staff} onLogout={logout} />;
   if (staff.rol === "mutfak") return <KitchenPanel staff={staff} onLogout={logout} />;
   if (staff.rol === "kasa")   return <CashierPanel staff={staff} onLogout={logout} />;
   return <StaffPanel staff={staff} onLogout={logout} />;
+  };
+
+  return (
+    <>
+      {renderScreen()}
+      {intro && (isCustomer
+        ? <Intro title={qrInfo?.venue_ad || "Hoş geldiniz"} sub={qrInfo ? `Masa ${qrInfo.masa_no} · Hoş geldiniz` : ""} logo={qrInfo?.logo_url} gorsel={gorselGiris_} ready={!qrLoading} onDone={endIntro} />
+        : <Intro title="Sanal Garson" sub="Kafe ve restoranlar için dijital servis" onDone={endIntro} />)}
+    </>
+  );
 }
