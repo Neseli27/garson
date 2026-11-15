@@ -67,6 +67,28 @@ input, textarea, button, select {
 }
 
 /* ══════════════════════════════════════════════════════════
+   v5 — TAM GENİŞLİK (data-layout="wide")
+   Mutfak tableti ve kasa bilgisayarı: telefon çerçevesi yok
+══════════════════════════════════════════════════════════ */
+@media (min-width: 600px) {
+  body[data-layout="wide"] {
+    background: var(--bg);
+    display: block;
+    min-height: 100vh;
+  }
+  body[data-layout="wide"] #root {
+    width: 100%;
+    max-width: none;
+    height: auto;
+    min-height: 100vh;
+    max-height: none;
+    border-radius: 0;
+    overflow: visible;
+    box-shadow: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
    MASAÜSTÜ DASHBOARD (data-layout="desktop")
    İşletmeci geniş moddayken aktifleşir
    Layout: sidebar (220px) + content (1100px) = 1400px merkezde
