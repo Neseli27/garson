@@ -3576,10 +3576,8 @@ export default function App() {
   const params = new URLSearchParams(window.location.search);
   
   // QR token: URL'den al veya localStorage'dan geri yükle
+  // (localStorage'a yalnızca sunucu QR'ı doğruladıktan sonra yazılır — aşağıda "QR yükle")
   const urlQr = params.get("qr");
-  if (urlQr) {
-    localStorage.setItem("sg_qr_token", urlQr); // PWA için sakla
-  }
   const qrToken   = urlQr || localStorage.getItem("sg_qr_token") || null;
   const isCustomer = !!qrToken && !localStorage.getItem("sg_token"); // personel girişi varsa müşteri değil
 
@@ -3611,7 +3609,19 @@ export default function App() {
   useEffect(() => {
     if (!isCustomer) return;
     get(`session.php?qr=${qrToken}`).then(r => {
-      if (r.error) { setQrError(r.code === "KAPALI" ? "Bu işletme şu anda hizmet vermiyor." : "Geçersiz veya süresi dolmuş QR kodu."); setQrLoading(false); return; }
+      if (r.error) {
+        if (r.code === "KAPALI") { setQrError("Bu işletme şu anda hizmet vermiyor."); setQrLoading(false); return; }
+        // Geçersiz QR: saklı kodu sil, yoksa bu cihaz her açılışta bu ekranda kalır.
+        // Kod adres çubuğundan değil önceki bir ziyaretten geldiyse personel girişine dön.
+        // (Silme başarısızsa yeniden yükleme yapılmaz; sonsuz döngü olmasın.)
+        let kalan = null;
+        try { localStorage.removeItem("sg_qr_token"); kalan = localStorage.getItem("sg_qr_token"); } catch { kalan = "?"; }
+        if (!urlQr && !kalan) { window.location.replace(window.location.pathname); return; }
+        setQrError("Geçersiz veya süresi dolmuş QR kodu."); setQrLoading(false); return;
+      }
+
+      // Geçerli QR → PWA için sakla (ana ekrandan açılınca aynı masaya dönsün)
+      try { localStorage.setItem("sg_qr_token", qrToken); } catch {}
 
       // ── Mekan temasını uygula (renkler + logo) ──
       applyTheme(r);
