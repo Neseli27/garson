@@ -11,7 +11,7 @@
 // - Sessiz güncelleme: skipWaiting() + clients.claim() — kullanıcıya soru sormadan yeni SW devralır
 //   Bir sonraki sayfa açılışında yeni versiyon aktif olur (mevcut tab'de mid-session güncelleme olmaz, doğru davranış)
 
-const CACHE_VERSION = 'v8-2026-11-16';
+const CACHE_VERSION = 'v9-2026-11-16';
 const CACHE_STATIC  = `sg-static-${CACHE_VERSION}`;
 const CACHE_RUNTIME = `sg-runtime-${CACHE_VERSION}`;
 

@@ -1,4 +1,17 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import {
+  IconReceipt, IconArmchair, IconBell, IconSettings, IconBuildingStore, IconDeviceMobile, IconDeviceDesktop,
+  IconLogout, IconUser, IconUsers, IconUserPlus, IconShieldCheck, IconBriefcase, IconChefHat, IconCashRegister,
+  IconChartBar, IconBook, IconQrcode, IconPalette, IconInfoCircle, IconKey, IconCalendar, IconNote,
+  IconPlayerPause, IconPlayerPlay, IconPencil, IconTrash, IconPlus, IconLock, IconCircleCheck, IconLink,
+  IconCash, IconCreditCard, IconTrophy, IconPhoto, IconEye, IconSparkles, IconToolsKitchen2, IconCategory,
+} from "@tabler/icons-react";
+
+// Personel paneli simgeleri (Tabler, çizgi stil). Renk yazıdan gelir.
+const Ik = ({ i: I, s = 18, st = 1.8, style }) => <I size={s} stroke={st} className="sg-ik" aria-hidden="true" style={style} />;
+const ROL_IK = { superadmin: IconShieldCheck, isletmeci: IconBriefcase, garson: IconUser, mutfak: IconChefHat, kasa: IconCashRegister };
+// Küçük bölüm etiketi (BÜYÜK HARF) — simgeyle birlikte
+const ETIKET = { fontSize: 13, fontWeight: 700, letterSpacing: .6, color: "var(--muted)", display: "flex", alignItems: "center", gap: 7 };
 
 const API = import.meta.env.VITE_API_BASE || "https://garson.testokulu.com/garson-api";
 
@@ -243,13 +256,13 @@ const StaffLogin = ({ onLogin }) => {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 28 }}>
       <div style={{ position: "fixed", inset: 0, background: "radial-gradient(ellipse 70% 50% at 50% 30%, rgba(201,145,58,.06) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ width: 68, height: 68, borderRadius: "50%", background: "linear-gradient(135deg,var(--gold) 0%,#6b3d10 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, marginBottom: 18, boxShadow: "0 0 32px rgba(201,145,58,.3)", animation: "float 4s ease-in-out infinite", position: "relative", zIndex: 1 }}>🍽️</div>
+      <div style={{ width: 68, height: 68, borderRadius: "50%", background: "linear-gradient(135deg,var(--gold) 0%,#6b3d10 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, marginBottom: 18, boxShadow: "0 0 32px rgba(201,145,58,.3)", animation: "float 4s ease-in-out infinite", position: "relative", zIndex: 1, color: "#fff" }}><Ik i={IconToolsKitchen2} s={34} st={1.6} /></div>
       <div style={{ fontFamily: "var(--fh)", fontSize: 24, color: "var(--cream)", marginBottom: 4, position: "relative", zIndex: 1 }}>Personel Girişi</div>
-      <div style={{ fontSize: 13, color: "var(--muted)", fontStyle: "italic", marginBottom: 28, position: "relative", zIndex: 1 }}>Telefon ve şifrenizle giriş yapın</div>
+      <div style={{ fontSize: 14, color: "var(--muted)", fontStyle: "italic", marginBottom: 28, position: "relative", zIndex: 1 }}>Telefon ve şifrenizle giriş yapın</div>
       <div style={{ width: "100%", maxWidth: 340, position: "relative", zIndex: 1 }}>
         <Inp label="TELEFON" value={tel} onChange={setTel} type="tel" placeholder="05xx xxx xx xx" autoFocus />
         <Inp label="ŞİFRE" value={pass} onChange={setPass} type="password" placeholder="••••••" />
-        {err && <div style={{ padding: "10px 14px", background: "rgba(192,64,64,.15)", border: "1px solid rgba(192,64,64,.35)", borderRadius: 10, fontSize: 13, color: "#e06060", marginBottom: 14 }}>⚠️ {err}</div>}
+        {err && <div style={{ padding: "10px 14px", background: "rgba(192,64,64,.15)", border: "1px solid rgba(192,64,64,.35)", borderRadius: 10, fontSize: 14, color: "var(--c-red)", marginBottom: 14 }}>⚠️ {err}</div>}
         <button onClick={login} disabled={loading} style={{ width: "100%", padding: "14px", background: loading ? "var(--surf2)" : "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 12, color: loading ? "var(--muted)" : "#0b0704", cursor: loading ? "not-allowed" : "pointer", fontFamily: "var(--fh)", fontSize: 17, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
           {loading ? <Spin /> : "Giriş Yap →"}
         </button>
@@ -265,13 +278,17 @@ const StaffLogin = ({ onLogin }) => {
    yeni → mutfakta → hazırlanıyor → hazır → teslim   (+ iptal)
 ══════════════════════════════════════════════════════════ */
 const OS = {
-  "yeni":         { kisa: "Teyit bekliyor",   musteri: "Garson onayı bekleniyor",        ikon: "⏳", rgb: "192,64,64",  renk: "#e06060" },
-  "mutfakta":     { kisa: "Mutfağa iletildi", musteri: "Onaylandı, mutfağa iletildi",    ikon: "📨", rgb: "58,106,154", renk: "#6aaae0" },
+  "yeni":         { kisa: "Teyit bekliyor",   musteri: "Garson onayı bekleniyor",        ikon: "⏳", rgb: "192,64,64",  renk: "var(--c-red)" },
+  "mutfakta":     { kisa: "Mutfağa iletildi", musteri: "Onaylandı, mutfağa iletildi",    ikon: "📨", rgb: "58,106,154", renk: "var(--c-blue)" },
   "hazırlanıyor": { kisa: "Hazırlanıyor",     musteri: "Mutfak onayladı, hazırlanıyor",  ikon: "🔥", rgb: "201,145,58", renk: "var(--gsoft)" },
-  "hazır":        { kisa: "Hazır",            musteri: "Hazır, garsonunuz getiriyor",    ikon: "✅", rgb: "58,138,92",  renk: "#3aaa6a" },
+  "hazır":        { kisa: "Hazır",            musteri: "Hazır, garsonunuz getiriyor",    ikon: "✅", rgb: "58,138,92",  renk: "var(--c-green)" },
   "teslim":       { kisa: "Teslim edildi",    musteri: "Teslim edildi",                  ikon: "🍽️", rgb: "122,100,72", renk: "var(--muted)" },
   "iptal":        { kisa: "İptal",            musteri: "İptal edildi",                   ikon: "✕",  rgb: "122,100,72", renk: "var(--muted)" },
 };
+// Açık temada (personel paneli) pastel yazı renkleri okunmaz; yazıda aynı tonun koyusu kullanılır.
+// Zemin ve kenar renkleri (rgba ... .14 / .4) olduğu gibi kalır.
+const KOYU = { "232,184,109": "138,90,20", "106,170,224": "31,95,160", "58,170,106": "31,122,71", "224,96,96": "178,52,52", "224,150,60": "163,92,18", "192,64,64": "170,45,45", "58,138,92": "31,110,64", "58,106,154": "36,84,140", "201,145,58": "138,90,20", "122,100,72": "107,86,64" };
+const koyu = rgb => KOYU[String(rgb).replace(/\s/g, "")] || rgb;
 const osOf = st => OS[st] || OS.yeni;
 const canliOrders = list => (list || []).filter(o => o.status !== "iptal");
 const sumOrders   = list => canliOrders(list).reduce((a, o) => a + (o.toplam || 0), 0);
@@ -889,7 +906,7 @@ const ImagePicker = ({ value, onChange, uploading, onUpload }) => {
 
   return (
     <div style={{ marginBottom: 9 }}>
-      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8, letterSpacing: .5 }}>ÜRÜN GÖRSELİ</div>
+      <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8, letterSpacing: .5 }}>ÜRÜN GÖRSELİ</div>
 
       {/* Önizleme */}
       {value ? (
@@ -908,11 +925,11 @@ const ImagePicker = ({ value, onChange, uploading, onUpload }) => {
           />
           <button
             onClick={() => onChange("")}
-            style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:"50%", background:"rgba(0,0,0,.7)", border:"1px solid rgba(255,255,255,.2)", color:"#fff", cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}
+            style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:"50%", background:"rgba(0,0,0,.7)", border:"1px solid rgba(255,255,255,.2)", color:"#fff", cursor:"pointer", fontSize:15, display:"flex", alignItems:"center", justifyContent:"center" }}
           >✕</button>
         </div>
       ) : (
-        <div style={{ width:"100%", height:100, borderRadius:14, border:"2px dashed var(--bord)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:10, background:"var(--surf)", color:"var(--muted)", fontSize:13 }}>
+        <div style={{ width:"100%", height:100, borderRadius:14, border:"2px dashed var(--bord)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:10, background:"var(--surf)", color:"var(--muted)", fontSize:14 }}>
           Görsel yok
         </div>
       )}
@@ -923,7 +940,7 @@ const ImagePicker = ({ value, onChange, uploading, onUpload }) => {
         <button
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          style={{ flex:1, padding:"10px 8px", background:"rgba(201,145,58,.12)", border:"1px solid rgba(201,145,58,.4)", borderRadius:10, color:"var(--gsoft)", cursor:uploading?"not-allowed":"pointer", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
+          style={{ flex:1, padding:"10px 8px", background:"rgba(201,145,58,.12)", border:"1px solid rgba(201,145,58,.4)", borderRadius:10, color:"var(--gsoft)", cursor:uploading?"not-allowed":"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
         >
           {uploading ? <><Spin /> Yükleniyor...</> : "📁 Bilgisayardan"}
         </button>
@@ -941,7 +958,7 @@ const ImagePicker = ({ value, onChange, uploading, onUpload }) => {
             const url = window.prompt("Görsel URL'sini girin:");
             if (url?.trim()) onChange(url.trim());
           }}
-          style={{ flex:1, padding:"10px 8px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:10, color:"var(--muted)", cursor:"pointer", fontSize:13 }}
+          style={{ flex:1, padding:"10px 8px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:10, color:"var(--muted)", cursor:"pointer", fontSize:14 }}
         >
           🔗 URL ile
         </button>
@@ -1131,16 +1148,16 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
     if (r.ok) { flash("✅ Kategori adı değişti"); if (pCat === cat) setPCat(yeni.trim()); await load(); }
     else flash("❌ " + (r.error || "Hata"));
   };
-  const okBtn = { width: 26, height: 28, borderRadius: 7, background: "var(--surf)", border: "1px solid var(--bord)", color: "var(--muted)", cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 };
+  const okBtn = { width: 26, height: 28, borderRadius: 7, background: "var(--surf)", border: "1px solid var(--bord)", color: "var(--muted)", cursor: "pointer", fontSize: 12.5, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 };
 
   const inp = (ph, val, set, type = "text") => (
     <input type={type} value={val} onChange={e => set(e.target.value)} placeholder={ph}
-      style={{ width:"100%", background:"var(--bg)", border:"1px solid var(--bord)", borderRadius:9, padding:"11px 13px", color:"var(--cream)", fontSize:14, outline:"none", marginBottom:9 }}
+      style={{ width:"100%", background:"var(--bg)", border:"1px solid var(--bord)", borderRadius:9, padding:"11px 13px", color:"var(--cream)", fontSize:15, outline:"none", marginBottom:9 }}
     />
   );
 
-  const subBtn = (id, label) => (
-    <button key={id} onClick={() => setTab(id)} style={{ flex:1, padding:"9px 4px", background:tab===id?"var(--surf)":"transparent", border:"none", borderRadius:10, cursor:"pointer", fontSize:12, color:tab===id?"var(--gsoft)":"var(--muted)", fontWeight:tab===id?600:400 }}>{label}</button>
+  const subBtn = (id, label, ik) => (
+    <button key={id} onClick={() => setTab(id)} style={{ flex:1, padding:"9px 4px", background:tab===id?"var(--gdim)":"transparent", border:"none", borderRadius:10, cursor:"pointer", fontSize:14.5, color:tab===id?"var(--gsoft)":"var(--muted)", fontWeight:tab===id?600:500, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>{ik && <Ik i={ik} s={18} />}{label}</button>
   );
 
   if (loading) return <div style={{textAlign:"center",color:"var(--muted)",marginTop:40}}><Spin /></div>;
@@ -1149,16 +1166,16 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
     <div>
       {/* Mesaj */}
       {msg && (
-        <div style={{ padding:"10px 14px", background: msg.startsWith("✅")||msg.startsWith("▶")||msg.startsWith("🗑") ? "rgba(58,138,92,.15)" : "rgba(192,64,64,.15)", border:`1px solid ${msg.startsWith("✅")||msg.startsWith("▶")||msg.startsWith("🗑") ? "rgba(58,138,92,.4)" : "rgba(192,64,64,.4)"}`, borderRadius:10, fontSize:13, color: msg.startsWith("✅")||msg.startsWith("▶")||msg.startsWith("🗑") ? "#3aaa6a" : "#e06060", marginBottom:14, animation:"fadeIn .2s" }}>
+        <div style={{ padding:"10px 14px", background: msg.startsWith("✅")||msg.startsWith("▶")||msg.startsWith("🗑") ? "rgba(58,138,92,.15)" : "rgba(192,64,64,.15)", border:`1px solid ${msg.startsWith("✅")||msg.startsWith("▶")||msg.startsWith("🗑") ? "rgba(58,138,92,.4)" : "rgba(192,64,64,.4)"}`, borderRadius:10, fontSize:14, color: msg.startsWith("✅")||msg.startsWith("▶")||msg.startsWith("🗑") ? "var(--c-green)" : "var(--c-red)", marginBottom:14, animation:"fadeIn .2s" }}>
           {msg}
         </div>
       )}
 
       {/* Alt sekmeler */}
       <div style={{ display:"flex", background:"var(--surf2)", borderRadius:12, padding:3, marginBottom:16 }}>
-        {subBtn("liste","📋 Ürünler")}
-        {subBtn("cat","🗂 Kategori")}
-        {subBtn("urun","➕ Ürün Ekle")}
+        {subBtn("liste","Ürünler",IconBook)}
+        {subBtn("cat","Kategori",IconCategory)}
+        {subBtn("urun","Ürün Ekle",IconPlus)}
       </div>
 
       {/* ── ÜRÜN LİSTESİ ── */}
@@ -1169,13 +1186,13 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
               const catItems = items.filter(i => i.cat === cat);
               if (!catItems.length) return (
                 <div key={cat} style={{marginBottom:14}}>
-                  <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--gsoft)",padding:"7px 12px",background:"var(--surf2)",borderRadius:8,marginBottom:4}}>{cat} <span style={{color:"var(--muted)",fontSize:11}}>(boş)</span></div>
+                  <div style={{fontFamily:"var(--fh)",fontSize:14,color:"var(--gsoft)",padding:"7px 12px",background:"var(--surf2)",borderRadius:8,marginBottom:4}}>{cat} <span style={{color:"var(--muted)",fontSize:12.5}}>(boş)</span></div>
                 </div>
               );
               return (
                 <div key={cat} style={{marginBottom:18}}>
-                  <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--gsoft)",padding:"7px 12px",background:"var(--surf2)",borderRadius:8,marginBottom:6}}>
-                    {cat} <span style={{color:"var(--muted)",fontSize:11}}>({catItems.length} ürün)</span>
+                  <div style={{fontFamily:"var(--fh)",fontSize:14,color:"var(--gsoft)",padding:"7px 12px",background:"var(--surf2)",borderRadius:8,marginBottom:6}}>
+                    {cat} <span style={{color:"var(--muted)",fontSize:12.5}}>({catItems.length} ürün)</span>
                   </div>
                   {catItems.map(item => (
                     <div key={item.id} style={{ padding:"10px 12px", marginBottom:6, background:"var(--surf2)", border:`1px solid ${item.aktif===0||item.aktif==="0"?"rgba(192,64,64,.3)":"var(--bord)"}`, borderRadius:11, opacity:item.aktif===0||item.aktif==="0"?0.6:1 }}>
@@ -1188,9 +1205,9 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
                             />
                           )}
                           <div>
-                            <div style={{fontSize:14,color:"var(--cream)",fontWeight:500}}>{item.one_cikan && <span style={{color:"var(--gold)",marginRight:5}}>⭐</span>}{item.name}</div>
-                            <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>{item.price}₺ · ~{item.wait}dk{item.desc ? " · "+item.desc : ""}</div>
-                            {(item.aktif===0||item.aktif==="0") && <div style={{fontSize:11,color:"#e06060",marginTop:2}}>⏸ Satış durduruldu</div>}
+                            <div style={{fontSize:15,color:"var(--cream)",fontWeight:500}}>{item.one_cikan && <span style={{color:"var(--gsoft)",marginRight:5}}>⭐</span>}{item.name}</div>
+                            <div style={{fontSize:13,color:"var(--muted)",marginTop:2}}>{item.price}₺ · ~{item.wait}dk{item.desc ? " · "+item.desc : ""}</div>
+                            {(item.aktif===0||item.aktif==="0") && <div style={{fontSize:12.5,color:"var(--c-red)",marginTop:2}}>⏸ Satış durduruldu</div>}
                           </div>
                         </div>
                         <div style={{display:"flex",gap:5,marginLeft:8,flexWrap:"wrap",justifyContent:"flex-end",maxWidth:"min(200px,40vw)"}}>
@@ -1199,10 +1216,10 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
                           <button onClick={async()=>{
                             const r = await apicall("menu_feature",{id:item.id,value:item.one_cikan?0:1});
                             if(r.ok) await load();
-                          }} title={item.one_cikan?"Öne Çıkarma Kaldır":"Öne Çıkar"} style={{width:28,height:28,borderRadius:7,background:item.one_cikan?"rgba(201,145,58,.25)":"var(--surf)",border:`1px solid ${item.one_cikan?"rgba(201,145,58,.6)":"var(--bord)"}`,color:item.one_cikan?"var(--gold)":"var(--muted)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>⭐</button>
-                          <button onClick={()=>toggleItem(item)} title={item.aktif?"Durdur":"Aktif Et"} style={{width:28,height:28,borderRadius:7,background:item.aktif?"rgba(201,145,58,.15)":"rgba(58,138,92,.15)",border:`1px solid ${item.aktif?"rgba(201,145,58,.4)":"rgba(58,138,92,.4)"}`,color:item.aktif?"var(--gsoft)":"#3aaa6a",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>{item.aktif?"⏸":"▶"}</button>
-                          <button onClick={()=>setEditItem({...item})} title="Düzenle" style={{width:28,height:28,borderRadius:7,background:"rgba(58,106,154,.15)",border:"1px solid rgba(58,106,154,.4)",color:"#6aaae0",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>✎</button>
-                          <button onClick={()=>delItem(item.id, item.name)} title="Sil" style={{width:28,height:28,borderRadius:7,background:"rgba(192,64,64,.15)",border:"1px solid rgba(192,64,64,.3)",color:"#e06060",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+                          }} title={item.one_cikan?"Öne Çıkarma Kaldır":"Öne Çıkar"} style={{width:28,height:28,borderRadius:7,background:item.one_cikan?"rgba(201,145,58,.25)":"var(--surf)",border:`1px solid ${item.one_cikan?"rgba(201,145,58,.6)":"var(--bord)"}`,color:item.one_cikan?"var(--gold)":"var(--muted)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>⭐</button>
+                          <button onClick={()=>toggleItem(item)} title={item.aktif?"Durdur":"Aktif Et"} style={{width:28,height:28,borderRadius:7,background:item.aktif?"rgba(201,145,58,.15)":"rgba(58,138,92,.15)",border:`1px solid ${item.aktif?"rgba(201,145,58,.4)":"rgba(58,138,92,.4)"}`,color:item.aktif?"var(--gsoft)":"var(--c-green)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>{item.aktif?"⏸":"▶"}</button>
+                          <button onClick={()=>setEditItem({...item})} title="Düzenle" style={{width:28,height:28,borderRadius:7,background:"rgba(58,106,154,.15)",border:"1px solid rgba(58,106,154,.4)",color:"var(--c-blue)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✎</button>
+                          <button onClick={()=>delItem(item.id, item.name)} title="Sil" style={{width:28,height:28,borderRadius:7,background:"rgba(192,64,64,.15)",border:"1px solid rgba(192,64,64,.3)",color:"var(--c-red)",cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
                         </div>
                       </div>
                     </div>
@@ -1216,17 +1233,17 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
       {tab === "cat" && (
         <div>
           <div style={{marginBottom:16}}>
-            <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--gsoft)",marginBottom:10}}>Mevcut Kategoriler</div>
+            <div style={{fontFamily:"var(--fh)",fontSize:14,color:"var(--gsoft)",marginBottom:10}}>Mevcut Kategoriler</div>
             {cats.length === 0
-              ? <div style={{color:"var(--muted)",fontSize:13,fontStyle:"italic",marginBottom:14}}>Henüz kategori yok</div>
+              ? <div style={{color:"var(--muted)",fontSize:14,fontStyle:"italic",marginBottom:14}}>Henüz kategori yok</div>
               : cats.map(cat => (
                 <div key={cat} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",marginBottom:8,background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12}}>
-                  <span style={{fontFamily:"var(--fh)",fontSize:15,color:"var(--cream)"}}>{cat}</span>
+                  <span style={{fontFamily:"var(--fh)",fontSize:16,color:"var(--cream)"}}>{cat}</span>
                   <div style={{display:"flex",alignItems:"center",gap:10}}>
-                    <span style={{fontSize:12,color:"var(--muted)"}}>{items.filter(i=>i.cat===cat).length} ürün</span>
+                    <span style={{fontSize:13,color:"var(--muted)"}}>{items.filter(i=>i.cat===cat).length} ürün</span>
                     <button onClick={()=>moveCat(cat,"up")} title="Yukarı taşı" style={okBtn}>▲</button>
                     <button onClick={()=>moveCat(cat,"down")} title="Aşağı taşı" style={okBtn}>▼</button>
-                    <button onClick={()=>renameCat(cat)} title="Adını değiştir" style={{...okBtn,color:"#6aaae0",fontSize:13}}>✎</button>
+                    <button onClick={()=>renameCat(cat)} title="Adını değiştir" style={{...okBtn,color:"var(--c-blue)",fontSize:14}}>✎</button>
                     <button onClick={async()=>{
                       const n = items.filter(i=>i.cat===cat).length;
                       const msg = n > 0
@@ -1236,21 +1253,21 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
                       const r = await apicall("cat_del", {kategori: cat});
                       if(r.ok){ setCats(p=>p.filter(x=>x!==cat)); setItems(p=>p.filter(i=>i.cat!==cat)); flash("🗑 Kategori silindi"); }
                       else flash("❌ " + (r.error||"Hata"));
-                    }} style={{width:26,height:26,borderRadius:7,background:"rgba(192,64,64,.15)",border:"1px solid rgba(192,64,64,.3)",color:"#e06060",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+                    }} style={{width:26,height:26,borderRadius:7,background:"rgba(192,64,64,.15)",border:"1px solid rgba(192,64,64,.3)",color:"var(--c-red)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
                   </div>
                 </div>
               ))
             }
           </div>
           <div style={{padding:"16px",background:"var(--surf2)",border:"1px solid var(--gdim)",borderRadius:14}}>
-            <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--muted)",marginBottom:12}}>Yeni Kategori</div>
+            <div style={{fontFamily:"var(--fh)",fontSize:14,color:"var(--muted)",marginBottom:12}}>Yeni Kategori</div>
             <input
               type="text" value={catName} onChange={e=>setCatName(e.target.value)}
               onKeyDown={e=>e.key==="Enter"&&addCat()}
               placeholder="Örn: ☕ Kahveler"
-              style={{width:"100%",background:"var(--bg)",border:"1px solid var(--bord)",borderRadius:9,padding:"13px 15px",color:"var(--cream)",fontSize:15,outline:"none",marginBottom:12}}
+              style={{width:"100%",background:"var(--bg)",border:"1px solid var(--bord)",borderRadius:9,padding:"13px 15px",color:"var(--cream)",fontSize:16,outline:"none",marginBottom:12}}
             />
-            <button onClick={addCat} disabled={catBusy} style={{width:"100%",padding:"13px",background:catBusy?"var(--surf)":"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:catBusy?"var(--muted)":"#0b0704",cursor:catBusy?"not-allowed":"pointer",fontFamily:"var(--fh)",fontSize:15,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            <button onClick={addCat} disabled={catBusy} style={{width:"100%",padding:"13px",background:catBusy?"var(--surf)":"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:catBusy?"var(--muted)":"#0b0704",cursor:catBusy?"not-allowed":"pointer",fontFamily:"var(--fh)",fontSize:16,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
               {catBusy ? <><Spin /> Ekleniyor...</> : "+ Kategori Oluştur"}
             </button>
           </div>
@@ -1260,11 +1277,11 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
       {/* ── ÜRÜN EKLE ── */}
       {tab === "urun" && (
         <div style={{padding:"16px",background:"var(--surf2)",border:"1px solid var(--gdim)",borderRadius:14}}>
-          <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--muted)",marginBottom:12}}>Yeni Ürün</div>
+          <div style={{fontFamily:"var(--fh)",fontSize:14,color:"var(--muted)",marginBottom:12}}>Yeni Ürün</div>
           {cats.length === 0
-            ? <div style={{color:"#e06060",fontSize:13,marginBottom:14}}>⚠️ Önce kategori ekleyin.</div>
+            ? <div style={{color:"var(--c-red)",fontSize:14,marginBottom:14}}>⚠️ Önce kategori ekleyin.</div>
             : <>
-              <select value={pCat} onChange={e=>setPCat(e.target.value)} style={{width:"100%",background:"var(--bg)",border:"1px solid var(--bord)",borderRadius:9,padding:"11px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:9}}>
+              <select value={pCat} onChange={e=>setPCat(e.target.value)} style={{width:"100%",background:"var(--bg)",border:"1px solid var(--bord)",borderRadius:9,padding:"11px 13px",color:"var(--cream)",fontSize:15,outline:"none",marginBottom:9}}>
                 {cats.map(cat=><option key={cat} value={cat}>{cat}</option>)}
               </select>
               {inp("Ürün adı *", pName, setPName)}
@@ -1277,7 +1294,7 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
                 uploading={pImgUploading}
                 onUpload={file => uploadImage(file, setPImgUploading, setPImg)}
               />
-              <button onClick={addItem} disabled={pBusy} style={{width:"100%",padding:"13px",background:pBusy?"var(--surf)":"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:pBusy?"var(--muted)":"#0b0704",cursor:pBusy?"not-allowed":"pointer",fontFamily:"var(--fh)",fontSize:15,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:4}}>
+              <button onClick={addItem} disabled={pBusy} style={{width:"100%",padding:"13px",background:pBusy?"var(--surf)":"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:pBusy?"var(--muted)":"#0b0704",cursor:pBusy?"not-allowed":"pointer",fontFamily:"var(--fh)",fontSize:16,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:4}}>
                 {pBusy ? <><Spin /> Kaydediliyor...</> : "+ Ürünü Kaydet"}
               </button>
             </>
@@ -1290,10 +1307,10 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.9)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:400,backdropFilter:"blur(4px)"}}>
           <div style={{width:"100%",maxWidth:525,background:"var(--surf)",borderRadius:"22px 22px 0 0",padding:"20px 18px 36px",animation:"fadeUp .3s ease-out"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-              <div style={{fontFamily:"var(--fh)",fontSize:17,color:"var(--cream)"}}>✎ Ürünü Düzenle</div>
+              <div style={{fontFamily:"var(--fh)",fontSize:19,color:"var(--cream)",display:"flex",alignItems:"center",gap:8}}><Ik i={IconPencil} s={21} style={{ color:"var(--gsoft)" }} />Ürünü Düzenle</div>
               <button onClick={()=>setEditItem(null)} style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:22}}>✕</button>
             </div>
-            <select value={editItem.cat} onChange={e=>setEditItem({...editItem,cat:e.target.value})} style={{width:"100%",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:9,padding:"11px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:9}}>
+            <select value={editItem.cat} onChange={e=>setEditItem({...editItem,cat:e.target.value})} style={{width:"100%",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:9,padding:"11px 13px",color:"var(--cream)",fontSize:15,outline:"none",marginBottom:9}}>
               {cats.map(cat=><option key={cat} value={cat}>{cat}</option>)}
             </select>
             {[["Ürün adı",editItem.name,v=>setEditItem({...editItem,name:v})],
@@ -1302,7 +1319,7 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
               ["Açıklama",editItem.desc||"",v=>setEditItem({...editItem,desc:v})],
             ].map(([ph,val,fn,tp="text"],i)=>(
               <input key={i} type={tp} value={val||""} placeholder={ph} onChange={e=>fn(e.target.value)}
-                style={{width:"100%",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:9,padding:"11px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:9}} />
+                style={{width:"100%",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:9,padding:"11px 13px",color:"var(--cream)",fontSize:15,outline:"none",marginBottom:9}} />
             ))}
             <ImagePicker
               value={editItem.img||""}
@@ -1311,8 +1328,8 @@ const MenuManager = ({ venueId, parentMenu, parentFetch }) => {
               onUpload={file=>uploadImage(file,setEditImgUploading,v=>setEditItem({...editItem,img:v}))}
             />
             <div style={{display:"flex",gap:9}}>
-              <button onClick={()=>setEditItem(null)} style={{flex:1,padding:"12px",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:10,color:"var(--muted)",cursor:"pointer",fontSize:14}}>İptal</button>
-              <button onClick={updateItem} style={{flex:2,padding:"12px",background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:"#0b0704",cursor:"pointer",fontFamily:"var(--fh)",fontSize:15,fontWeight:600}}>Kaydet ✓</button>
+              <button onClick={()=>setEditItem(null)} style={{flex:1,padding:"12px",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:10,color:"var(--muted)",cursor:"pointer",fontSize:15}}>İptal</button>
+              <button onClick={updateItem} style={{flex:2,padding:"12px",background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:"#0b0704",cursor:"pointer",fontFamily:"var(--fh)",fontSize:16,fontWeight:600}}>Kaydet ✓</button>
             </div>
           </div>
         </div>
@@ -1534,7 +1551,7 @@ const QRManager = ({ tables, venueAd }) => {
     <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
       <input type="color" value={val} onChange={e=>onChange(e.target.value)}
         style={{ width:32, height:32, border:"none", borderRadius:6, cursor:"pointer", padding:0, background:"none" }} />
-      <span style={{ fontSize:12, color:"var(--muted)" }}>{label}</span>
+      <span style={{ fontSize:13, color:"var(--muted)" }}>{label}</span>
     </div>
   );
 
@@ -1543,7 +1560,7 @@ const QRManager = ({ tables, venueAd }) => {
       <div style={{ width:36, height:20, borderRadius:10, background:val?"var(--gold)":"var(--bord)", transition:"background .2s", position:"relative", flexShrink:0 }}>
         <div style={{ width:16, height:16, borderRadius:"50%", background:"#fff", position:"absolute", top:2, left:val?18:2, transition:"left .2s" }} />
       </div>
-      <span style={{ fontSize:13, color:"var(--cream)" }}>{label}</span>
+      <span style={{ fontSize:14, color:"var(--cream)" }}>{label}</span>
     </button>
   );
 
@@ -1552,7 +1569,7 @@ const QRManager = ({ tables, venueAd }) => {
       {/* Önizleme */}
       {previewTable && (
         <div style={{ marginBottom:20 }}>
-          <div style={{ fontSize:12, color:"var(--muted)", marginBottom:10, letterSpacing:.8, fontFamily:"var(--fh)" }}>ÖNİZLEME</div>
+          <div style={{ fontSize:13, color:"var(--muted)", marginBottom:10, letterSpacing:.8, fontFamily:"var(--fh)" }}>ÖNİZLEME</div>
           <div style={{ display:"flex", justifyContent:"center" }}>
             <div style={{
               background: cfg.cardBg,
@@ -1562,7 +1579,7 @@ const QRManager = ({ tables, venueAd }) => {
               textAlign:"center", width:180, boxShadow:"0 8px 32px rgba(0,0,0,.5)"
             }}>
               {cfg.showVenue && venueAd && (
-                <div style={{ fontFamily:"var(--fh)", fontSize:11, color:cfg.cardFg, marginBottom:8, letterSpacing:.5 }}>
+                <div style={{ fontFamily:"var(--fh)", fontSize:12.5, color:cfg.cardFg, marginBottom:8, letterSpacing:.5 }}>
                   {cfg.logoText && <span style={{marginRight:4}}>{cfg.logoText}</span>}
                   {venueAd}
                 </div>
@@ -1574,10 +1591,10 @@ const QRManager = ({ tables, venueAd }) => {
                 crossOrigin="anonymous"
               />
               {cfg.showName && (
-                <div style={{ fontFamily:"var(--fh)", fontSize:16, color:cfg.cardFg, marginTop:10, fontWeight:700 }}>MASA {previewTable.masa_no}</div>
+                <div style={{ fontFamily:"var(--fh)", fontSize:17, color:cfg.cardFg, marginTop:10, fontWeight:700 }}>MASA {previewTable.masa_no}</div>
               )}
               {cfg.altText && (
-                <div style={{ fontSize:9, color:cfg.cardFg+"99", marginTop:4 }}>{cfg.altText}</div>
+                <div style={{ fontSize:12, color:cfg.cardFg+"99", marginTop:4 }}>{cfg.altText}</div>
               )}
             </div>
           </div>
@@ -1586,7 +1603,7 @@ const QRManager = ({ tables, venueAd }) => {
 
       {/* Tasarım ayarları */}
       <div style={{ padding:"14px 15px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14, marginBottom:14 }}>
-        <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--gsoft)", marginBottom:12, letterSpacing:.8 }}>TASARIM</div>
+        <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--gsoft)", marginBottom:12, letterSpacing:.8 }}>TASARIM</div>
 
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 20px" }}>
           <Swatch val={cfg.cardBg} onChange={v=>set("cardBg",v)} label="Kart arka planı" />
@@ -1604,28 +1621,28 @@ const QRManager = ({ tables, venueAd }) => {
         <Tog val={cfg.rounded}   onChange={v=>set("rounded",v)}   label="Yuvarlak köşe" />
 
         <div style={{ marginTop:10 }}>
-          <div style={{ fontSize:12, color:"var(--muted)", marginBottom:6 }}>Logo / Emoji</div>
+          <div style={{ fontSize:13, color:"var(--muted)", marginBottom:6 }}>Logo / Emoji</div>
           <input type="text" value={cfg.logoText} onChange={e=>set("logoText",e.target.value)}
             placeholder="🍕 veya ★ veya boş bırak"
-            style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"8px 12px", color:"var(--cream)", fontSize:14, outline:"none" }}
+            style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"8px 12px", color:"var(--cream)", fontSize:15, outline:"none" }}
           />
         </div>
 
         <div style={{ marginTop:10 }}>
-          <div style={{ fontSize:12, color:"var(--muted)", marginBottom:6 }}>Alt yazı</div>
+          <div style={{ fontSize:13, color:"var(--muted)", marginBottom:6 }}>Alt yazı</div>
           <input type="text" value={cfg.altText} onChange={e=>set("altText",e.target.value)}
             placeholder="Sipariş için okutun"
-            style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"8px 12px", color:"var(--cream)", fontSize:14, outline:"none" }}
+            style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"8px 12px", color:"var(--cream)", fontSize:15, outline:"none" }}
           />
         </div>
       </div>
 
       {/* Format */}
       <div style={{ padding:"12px 15px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14, marginBottom:14 }}>
-        <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--gsoft)", marginBottom:10, letterSpacing:.8 }}>FORMAT</div>
+        <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--gsoft)", marginBottom:10, letterSpacing:.8 }}>FORMAT</div>
         <div style={{ display:"flex", gap:8 }}>
           {[["png","PNG — Yazıcı"],["svg","SVG — Matbaa / Vektörel"]].map(([v,l])=>(
-            <button key={v} onClick={()=>set("format",v)} style={{ flex:1, padding:"9px 6px", background:cfg.format===v?"var(--gdim)":"var(--surf)", border:`1px solid ${cfg.format===v?"var(--gold)":"var(--bord)"}`, borderRadius:10, color:cfg.format===v?"var(--gsoft)":"var(--muted)", cursor:"pointer", fontSize:12 }}>{l}</button>
+            <button key={v} onClick={()=>set("format",v)} style={{ flex:1, padding:"9px 6px", background:cfg.format===v?"var(--gdim)":"var(--surf)", border:`1px solid ${cfg.format===v?"var(--gold)":"var(--bord)"}`, borderRadius:10, color:cfg.format===v?"var(--gsoft)":"var(--muted)", cursor:"pointer", fontSize:13 }}>{l}</button>
           ))}
         </div>
       </div>
@@ -1633,15 +1650,15 @@ const QRManager = ({ tables, venueAd }) => {
       {/* Masa seçimi */}
       <div style={{ padding:"12px 15px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14, marginBottom:14 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-          <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--gsoft)", letterSpacing:.8 }}>MASA SEÇ ({selected.size}/{tables.length})</div>
-          <button onClick={toggleAll} style={{ fontSize:12, color:"var(--gold)", background:"none", border:"none", cursor:"pointer" }}>
+          <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--gsoft)", letterSpacing:.8 }}>MASA SEÇ ({selected.size}/{tables.length})</div>
+          <button onClick={toggleAll} style={{ fontSize:13, color:"var(--gsoft)", background:"none", border:"none", cursor:"pointer" }}>
             {selectAll ? "Seçimi Kaldır" : "Tümünü Seç"}
           </button>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:6 }}>
           {tables.sort((a,b)=>a.masa_no-b.masa_no).map(t=>(
             <button key={t.id} onClick={()=>toggle(t.id)} style={{
-              padding:"8px 4px", borderRadius:8, fontSize:13, fontFamily:"var(--fh)",
+              padding:"8px 4px", borderRadius:8, fontSize:14, fontFamily:"var(--fh)",
               background:selected.has(t.id)?"var(--gdim)":"var(--surf)",
               border:`1px solid ${selected.has(t.id)?"var(--gold)":"var(--bord)"}`,
               color:selected.has(t.id)?"var(--gsoft)":"var(--muted)", cursor:"pointer"
@@ -1652,30 +1669,30 @@ const QRManager = ({ tables, venueAd }) => {
 
       {/* İndirme */}
       <div style={{ padding:"12px 15px", background:"var(--surf2)", border:"1px solid var(--bord)", borderRadius:14 }}>
-        <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--gsoft)", marginBottom:12, letterSpacing:.8 }}>İNDİR</div>
+        <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--gsoft)", marginBottom:12, letterSpacing:.8 }}>İNDİR</div>
 
         {/* Tek tek indir */}
-        <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--muted)", marginBottom:8 }}>Tek Tek</div>
+        <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--muted)", marginBottom:8 }}>Tek Tek</div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6, marginBottom:14 }}>
           {tables.filter(t=>selected.has(t.id)).slice(0,12).map(t=>(
-            <button key={t.id} onClick={()=>downloadPNG(t)} style={{ padding:"8px 4px", background:"rgba(201,145,58,.12)", border:"1px solid rgba(201,145,58,.35)", borderRadius:9, color:"var(--gsoft)", cursor:"pointer", fontSize:12, fontFamily:"var(--fh)" }}>
+            <button key={t.id} onClick={()=>downloadPNG(t)} style={{ padding:"8px 4px", background:"rgba(201,145,58,.12)", border:"1px solid rgba(201,145,58,.35)", borderRadius:9, color:"var(--gsoft)", cursor:"pointer", fontSize:13, fontFamily:"var(--fh)" }}>
               ↓ Masa {t.masa_no}
             </button>
           ))}
-          {selected.size === 0 && <div style={{gridColumn:"1/-1",color:"var(--muted)",fontSize:12,fontStyle:"italic"}}>Masa seçin</div>}
+          {selected.size === 0 && <div style={{gridColumn:"1/-1",color:"var(--muted)",fontSize:13,fontStyle:"italic"}}>Masa seçin</div>}
         </div>
 
         {/* Toplu baskı */}
-        <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--muted)", marginBottom:8 }}>Toplu Baskı (PNG — A4)</div>
+        <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--muted)", marginBottom:8 }}>Toplu Baskı (PNG — A4)</div>
         <div style={{ display:"flex", gap:8 }}>
-          <button onClick={()=>downloadA4(9)} style={{ flex:1, padding:"11px", background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:13, fontWeight:600 }}>
+          <button onClick={()=>downloadA4(9)} style={{ flex:1, padding:"11px", background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:14, fontWeight:600 }}>
             A4 — 9 QR (3×3)
           </button>
-          <button onClick={()=>downloadA4(16)} style={{ flex:1, padding:"11px", background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:13, fontWeight:600 }}>
+          <button onClick={()=>downloadA4(16)} style={{ flex:1, padding:"11px", background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:14, fontWeight:600 }}>
             A4 — 16 QR (4×4)
           </button>
         </div>
-        <div style={{ fontSize:11, color:"var(--muted)", marginTop:8, fontStyle:"italic" }}>
+        <div style={{ fontSize:12.5, color:"var(--muted)", marginTop:8, fontStyle:"italic" }}>
           💡 SVG format seçiliyse tek tek indirme vektörel olur — matbaa kalitesi
         </div>
       </div>
@@ -1698,12 +1715,12 @@ const TEMA_PRESETS = [
 
 const ColorInput = ({ label, value, onChange }) => (
   <div style={{ flex:1, minWidth:0 }}>
-    <div style={{ fontSize:11, color:"var(--muted)", marginBottom:6 }}>{label}</div>
+    <div style={{ fontSize:12.5, color:"var(--muted)", marginBottom:6 }}>{label}</div>
     <div style={{ display:"flex", gap:6, alignItems:"center", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"5px 7px" }}>
       <input type="color" value={value} onChange={e=>onChange(e.target.value)}
         style={{ width:32, height:32, border:"none", background:"transparent", cursor:"pointer", padding:0, borderRadius:6, flexShrink:0 }} />
       <input type="text" value={value} onChange={e=>onChange(e.target.value)}
-        style={{ flex:1, minWidth:0, width:"100%", background:"transparent", border:"none", color:"var(--cream)", fontSize:12, fontFamily:"monospace", outline:"none" }} />
+        style={{ flex:1, minWidth:0, width:"100%", background:"transparent", border:"none", color:"var(--cream)", fontSize:13, fontFamily:"monospace", outline:"none" }} />
     </div>
   </div>
 );
@@ -1774,17 +1791,17 @@ const TemaEditor = ({ venueId }) => {
 
   return (
     <div style={{ padding:"14px 15px", background:"var(--surf2)", border:"1px solid var(--gdim)", borderRadius:14, marginBottom:14 }}>
-      <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--gsoft)", marginBottom:6 }}>🎨 Marka Ayarları</div>
-      <div style={{ fontSize:11, color:"var(--muted)", fontStyle:"italic", marginBottom:14 }}>
+      <div style={{ fontFamily:"var(--fh)", fontSize:19, color:"var(--cream)", marginBottom:6, display:"flex", alignItems:"center", gap:8 }}><Ik i={IconPalette} s={21} style={{ color:"var(--gsoft)" }} />Marka Ayarları</div>
+      <div style={{ fontSize:12.5, color:"var(--muted)", fontStyle:"italic", marginBottom:14 }}>
         Müşterileriniz QR okuttuğunda bu renkleri ve logoyu görecek. Değişiklikler anında önizleme olarak yansır, kaydedince kalıcı olur.
       </div>
 
       {/* Hazır temalar */}
-      <div style={{ fontSize:11, color:"var(--muted)", marginBottom:8 }}>⚡ HAZIR TEMALAR</div>
+      <div style={{ ...ETIKET, marginBottom:8 }}><Ik i={IconSparkles} s={17} />HAZIR TEMALAR</div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(92px,1fr))", gap:7, marginBottom:16 }}>
         {TEMA_PRESETS.map((p,i) => (
           <button key={i} onClick={()=>applyPreset(p)}
-            style={{ padding:"8px 6px", background:p.bg, border:`1px solid ${p.primary}66`, borderRadius:9, color:p.secondary, cursor:"pointer", fontSize:11, fontFamily:"var(--fh)", transition:"transform .15s" }}>
+            style={{ padding:"8px 6px", background:p.bg, border:`1px solid ${p.primary}66`, borderRadius:9, color:p.secondary, cursor:"pointer", fontSize:12.5, fontFamily:"var(--fh)", transition:"transform .15s" }}>
             <div style={{ display:"flex", gap:3, justifyContent:"center", marginBottom:4 }}>
               <span style={{ width:10, height:10, borderRadius:"50%", background:p.primary, display:"inline-block" }} />
               <span style={{ width:10, height:10, borderRadius:"50%", background:p.secondary, display:"inline-block" }} />
@@ -1802,14 +1819,14 @@ const TemaEditor = ({ venueId }) => {
       </div>
 
       {/* Logo */}
-      <div style={{ fontSize:11, color:"var(--muted)", marginBottom:7 }}>🖼️ LOGO</div>
+      <div style={{ ...ETIKET, marginBottom:7 }}><Ik i={IconPhoto} s={17} />LOGO</div>
       {logo ? (
         <div style={{ position:"relative", marginBottom:10, background:bg, borderRadius:14, padding:20, display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid var(--bord)" }}>
           <img src={logo} alt="" style={{ maxWidth:"100%", maxHeight:110, objectFit:"contain" }} />
-          <button onClick={()=>setLogo("")} style={{ position:"absolute", top:8, right:8, width:26, height:26, borderRadius:"50%", background:"rgba(0,0,0,.7)", border:"none", color:"#fff", cursor:"pointer", fontSize:13 }}>✕</button>
+          <button onClick={()=>setLogo("")} style={{ position:"absolute", top:8, right:8, width:26, height:26, borderRadius:"50%", background:"rgba(0,0,0,.7)", border:"none", color:"#fff", cursor:"pointer", fontSize:14 }}>✕</button>
         </div>
       ) : (
-        <div style={{ width:"100%", height:70, borderRadius:14, border:"2px dashed var(--bord)", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--muted)", fontSize:12, marginBottom:10 }}>
+        <div style={{ width:"100%", height:70, borderRadius:14, border:"2px dashed var(--bord)", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--muted)", fontSize:13, marginBottom:10 }}>
           Henüz logo yok
         </div>
       )}
@@ -1817,17 +1834,17 @@ const TemaEditor = ({ venueId }) => {
         onChange={e=>{ const f=e.target.files?.[0]; if(f) uploadLogo(f); e.target.value=""; }} />
       <div style={{ display:"flex", gap:8, marginBottom:14 }}>
         <button onClick={()=>logoRef.current?.click()} disabled={upLogo}
-          style={{ flex:1, padding:"8px", background:"rgba(201,145,58,.12)", border:"1px solid rgba(201,145,58,.35)", borderRadius:9, color:"var(--gsoft)", cursor:upLogo?"not-allowed":"pointer", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
-          {upLogo ? <Spin /> : "📁 Logo Yükle"}
+          style={{ flex:1, padding:"8px", background:"rgba(201,145,58,.12)", border:"1px solid rgba(201,145,58,.35)", borderRadius:9, color:"var(--gsoft)", cursor:upLogo?"not-allowed":"pointer", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+          {upLogo ? <Spin /> : <><Ik i={IconPhoto} s={18} />Logo Yükle</>}
         </button>
         <button onClick={()=>{ const u=window.prompt("Logo URL:"); if(u?.trim()) setLogo(u.trim()); }}
-          style={{ flex:1, padding:"8px", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, color:"var(--muted)", cursor:"pointer", fontSize:12 }}>
+          style={{ flex:1, padding:"8px", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, color:"var(--muted)", cursor:"pointer", fontSize:13 }}>
           🔗 URL
         </button>
       </div>
 
       {/* Önizleme kutusu */}
-      <div style={{ fontSize:11, color:"var(--muted)", marginBottom:7 }}>👁️ ÖNİZLEME</div>
+      <div style={{ ...ETIKET, marginBottom:7 }}><Ik i={IconEye} s={17} />ÖNİZLEME</div>
       <div style={{ background:bg, borderRadius:14, padding:"18px 16px", border:`1px solid ${primary}33`, marginBottom:14 }}>
         {logo && (
           <div style={{ textAlign:"center", marginBottom:12 }}>
@@ -1837,21 +1854,21 @@ const TemaEditor = ({ venueId }) => {
         <div style={{ fontFamily:"var(--fh)", fontSize:18, color:secondary, textAlign:"center", marginBottom:6 }}>
           Hoş Geldiniz
         </div>
-        <div style={{ fontSize:12, color:"#aaa", textAlign:"center", marginBottom:14 }}>
+        <div style={{ fontSize:13, color:"#aaa", textAlign:"center", marginBottom:14 }}>
           Masa 5 — Sipariş hazırlanıyor
         </div>
         <div style={{ display:"flex", gap:8, justifyContent:"center" }}>
-          <div style={{ padding:"8px 18px", background:`linear-gradient(135deg,${primary},${primary}aa)`, borderRadius:10, color:bg, fontSize:12, fontWeight:600 }}>
+          <div style={{ padding:"8px 18px", background:`linear-gradient(135deg,${primary},${primary}aa)`, borderRadius:10, color:bg, fontSize:13, fontWeight:600 }}>
             Menü
           </div>
-          <div style={{ padding:"8px 18px", background:"transparent", border:`1px solid ${primary}`, borderRadius:10, color:secondary, fontSize:12 }}>
+          <div style={{ padding:"8px 18px", background:"transparent", border:`1px solid ${primary}`, borderRadius:10, color:secondary, fontSize:13 }}>
             Hesap
           </div>
         </div>
       </div>
 
-      {saved && <div style={{ fontSize:12, color:"#3aaa6a", marginBottom:8, textAlign:"center" }}>✅ Tema kaydedildi. Müşterileriniz QR okuttuğunda yeni görünümü görecek.</div>}
-      <button onClick={save} style={{ width:"100%", padding:"11px", background:`linear-gradient(135deg,${primary},${primary}aa)`, border:"none", borderRadius:10, color:bg, cursor:"pointer", fontFamily:"var(--fh)", fontSize:13, fontWeight:600 }}>
+      {saved && <div style={{ fontSize:13, color:"var(--c-green)", marginBottom:8, textAlign:"center" }}>✅ Tema kaydedildi. Müşterileriniz QR okuttuğunda yeni görünümü görecek.</div>}
+      <button onClick={save} style={{ width:"100%", padding:"11px", background:`linear-gradient(135deg,${primary},${primary}aa)`, border:"none", borderRadius:10, color:bg, cursor:"pointer", fontFamily:"var(--fh)", fontSize:14, fontWeight:600 }}>
         Temayı Kaydet
       </button>
     </div>
@@ -1910,15 +1927,15 @@ const MekanBilgiEditor = ({ venueId }) => {
 
   const ImgSlot = ({ label, hint, val, setVal, busy, setBusy, fileRef }) => (
     <div style={{ marginBottom:14 }}>
-      <div style={{ fontSize:12, color:"var(--muted)", marginBottom:7 }}>{label}</div>
-      <div style={{ fontSize:11, color:"var(--muted)", fontStyle:"italic", marginBottom:8 }}>{hint}</div>
+      <div style={{ fontSize:13, color:"var(--muted)", marginBottom:7 }}>{label}</div>
+      <div style={{ fontSize:12.5, color:"var(--muted)", fontStyle:"italic", marginBottom:8 }}>{hint}</div>
       {val ? (
         <div style={{ position:"relative", marginBottom:8 }}>
           <img src={val} alt="" style={{ width:"100%", maxHeight:160, objectFit:"cover", borderRadius:14, border:"2px solid var(--gold)", display:"block" }} />
-          <button onClick={()=>setVal("")} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:"50%", background:"rgba(0,0,0,.7)", border:"none", color:"#fff", cursor:"pointer", fontSize:14 }}>✕</button>
+          <button onClick={()=>setVal("")} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:"50%", background:"rgba(0,0,0,.7)", border:"none", color:"#fff", cursor:"pointer", fontSize:15 }}>✕</button>
         </div>
       ) : (
-        <div style={{ width:"100%", height:80, borderRadius:14, border:"2px dashed var(--bord)", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--muted)", fontSize:13, marginBottom:8 }}>
+        <div style={{ width:"100%", height:80, borderRadius:14, border:"2px dashed var(--bord)", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--muted)", fontSize:14, marginBottom:8 }}>
           Henüz görsel yok
         </div>
       )}
@@ -1926,11 +1943,11 @@ const MekanBilgiEditor = ({ venueId }) => {
         onChange={e=>{ const f=e.target.files?.[0]; if(f) uploadImg(f,setBusy,setVal); e.target.value=""; }} />
       <div style={{ display:"flex", gap:8 }}>
         <button onClick={()=>fileRef.current?.click()} disabled={busy}
-          style={{ flex:1, padding:"8px", background:"rgba(201,145,58,.12)", border:"1px solid rgba(201,145,58,.35)", borderRadius:9, color:"var(--gsoft)", cursor:busy?"not-allowed":"pointer", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+          style={{ flex:1, padding:"8px", background:"rgba(201,145,58,.12)", border:"1px solid rgba(201,145,58,.35)", borderRadius:9, color:"var(--gsoft)", cursor:busy?"not-allowed":"pointer", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
           {busy ? <Spin /> : "📁 Yükle (JPG/PNG/GIF)"}
         </button>
         <button onClick={()=>{ const u=window.prompt("Görsel URL:"); if(u?.trim()) setVal(u.trim()); }}
-          style={{ flex:1, padding:"8px", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, color:"var(--muted)", cursor:"pointer", fontSize:12 }}>
+          style={{ flex:1, padding:"8px", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, color:"var(--muted)", cursor:"pointer", fontSize:13 }}>
           🔗 URL
         </button>
       </div>
@@ -1939,7 +1956,7 @@ const MekanBilgiEditor = ({ venueId }) => {
 
   return (
     <div style={{ padding:"14px 15px", background:"var(--surf2)", border:"1px solid var(--gdim)", borderRadius:14, marginBottom:14 }}>
-      <div style={{ fontFamily:"var(--fh)", fontSize:13, color:"var(--gsoft)", marginBottom:14 }}>🎨 Müşteri Ekranları</div>
+      <div style={{ fontFamily:"var(--fh)", fontSize:19, color:"var(--cream)", marginBottom:14, display:"flex", alignItems:"center", gap:8 }}><Ik i={IconPhoto} s={21} style={{ color:"var(--gsoft)" }} />Müşteri Ekranları</div>
 
       <ImgSlot
         label="🚪 Açılış / Karşılama Görseli"
@@ -1955,13 +1972,13 @@ const MekanBilgiEditor = ({ venueId }) => {
       />
 
       <div style={{ height:1, background:"var(--bord)", margin:"10px 0 14px" }} />
-      <div style={{ fontFamily:"var(--fh)", fontSize:12, color:"var(--muted)", marginBottom:8 }}>🏠 Mekan Hakkında (Yapay Zeka İçin)</div>
+      <div style={{ fontFamily:"var(--fh)", fontSize:19, color:"var(--cream)", marginBottom:8, display:"flex", alignItems:"center", gap:8 }}><Ik i={IconBuildingStore} s={21} style={{ color:"var(--gsoft)" }} />Mekan Hakkında <span style={{ fontFamily:"var(--fb)", fontSize:13.5, color:"var(--muted)" }}>(yapay zekâ için)</span></div>
       <textarea value={bilgi} onChange={e=>setBilgi(e.target.value)}
         placeholder="Mekanın hikayesi, mutfak tarzı, özellikler, ödüller..."
-        rows={3} style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"10px 13px", color:"var(--cream)", fontSize:13, outline:"none", resize:"vertical", lineHeight:1.6 }}
+        rows={3} style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"10px 13px", color:"var(--cream)", fontSize:14, outline:"none", resize:"vertical", lineHeight:1.6 }}
       />
-      {saved && <div style={{ fontSize:12, color:"#3aaa6a", marginTop:6 }}>✅ Kaydedildi</div>}
-      <button onClick={save} style={{ width:"100%", padding:"11px", marginTop:10, background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:13, fontWeight:600 }}>Kaydet</button>
+      {saved && <div style={{ fontSize:13, color:"var(--c-green)", marginTop:6 }}>✅ Kaydedildi</div>}
+      <button onClick={save} style={{ width:"100%", padding:"11px", marginTop:10, background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:14, fontWeight:600 }}>Kaydet</button>
     </div>
   );
 };
@@ -1993,14 +2010,14 @@ const ChangePassword = ({ staff, onDone }) => {
       <div style={{ position: "fixed", inset: 0, background: "radial-gradient(ellipse 70% 50% at 50% 30%, rgba(201,145,58,.06) 0%, transparent 70%)", pointerEvents: "none" }} />
       <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg,var(--gold) 0%,#6b3d10 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, marginBottom: 18, boxShadow: "0 0 32px rgba(201,145,58,.3)", position: "relative", zIndex: 1 }}>🔑</div>
       <div style={{ fontFamily: "var(--fh)", fontSize: 22, color: "var(--cream)", marginBottom: 6, position: "relative", zIndex: 1 }}>Şifrenizi Belirleyin</div>
-      <div style={{ fontSize: 13, color: "var(--muted)", fontStyle: "italic", marginBottom: 28, textAlign: "center", position: "relative", zIndex: 1 }}>
+      <div style={{ fontSize: 14, color: "var(--muted)", fontStyle: "italic", marginBottom: 28, textAlign: "center", position: "relative", zIndex: 1 }}>
         Hoş geldiniz, <strong style={{ color: "var(--gsoft)" }}>{staff.ad}</strong>!<br />
         Güvenliğiniz için lütfen yeni bir şifre belirleyin.
       </div>
       <div style={{ width: "100%", maxWidth: 340, position: "relative", zIndex: 1 }}>
         <Inp label="YENİ ŞİFRE" value={pass1} onChange={setPass1} type="password" placeholder="En az 6 karakter" />
         <Inp label="ŞİFRE TEKRAR" value={pass2} onChange={setPass2} type="password" placeholder="Aynı şifreyi tekrar girin" />
-        {err && <div style={{ padding: "10px 14px", background: "rgba(192,64,64,.15)", border: "1px solid rgba(192,64,64,.35)", borderRadius: 10, fontSize: 13, color: "#e06060", marginBottom: 14 }}>⚠️ {err}</div>}
+        {err && <div style={{ padding: "10px 14px", background: "rgba(192,64,64,.15)", border: "1px solid rgba(192,64,64,.35)", borderRadius: 10, fontSize: 14, color: "var(--c-red)", marginBottom: 14 }}>⚠️ {err}</div>}
         <button onClick={save} disabled={loading} style={{ width: "100%", padding: "14px", background: loading ? "var(--surf2)" : "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 12, color: loading ? "var(--muted)" : "#0b0704", cursor: loading ? "not-allowed" : "pointer", fontFamily: "var(--fh)", fontSize: 17, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
           {loading ? <Spin /> : "Şifremi Kaydet →"}
         </button>
@@ -2026,10 +2043,10 @@ const ChangePassInline = () => {
   };
   return (
     <div>
-      <input type="password" value={p1} onChange={e=>setP1(e.target.value)} placeholder="Yeni şifre" style={{width:"100%",background:"var(--bg)",border:"1px solid var(--bord)",borderRadius:9,padding:"10px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:7}}/>
-      <input type="password" value={p2} onChange={e=>setP2(e.target.value)} placeholder="Tekrar" style={{width:"100%",background:"var(--bg)",border:"1px solid var(--bord)",borderRadius:9,padding:"10px 13px",color:"var(--cream)",fontSize:14,outline:"none",marginBottom:7}}/>
-      {msg && <div style={{fontSize:13,color:msg.startsWith("✅")?"#3aaa6a":"#e06060",marginBottom:7}}>{msg}</div>}
-      <button onClick={save} style={{width:"100%",padding:"9px",background:"var(--surf)",border:"1px solid var(--bord)",borderRadius:9,color:"var(--cream)",cursor:"pointer",fontFamily:"var(--fb,inherit)",fontSize:13}}>Şifreyi Güncelle</button>
+      <input type="password" value={p1} onChange={e=>setP1(e.target.value)} placeholder="Yeni şifre" style={{width:"100%",background:"var(--bg)",border:"1px solid var(--bord)",borderRadius:9,padding:"10px 13px",color:"var(--cream)",fontSize:15,outline:"none",marginBottom:7}}/>
+      <input type="password" value={p2} onChange={e=>setP2(e.target.value)} placeholder="Tekrar" style={{width:"100%",background:"var(--bg)",border:"1px solid var(--bord)",borderRadius:9,padding:"10px 13px",color:"var(--cream)",fontSize:15,outline:"none",marginBottom:7}}/>
+      {msg && <div style={{fontSize:14,color:msg.startsWith("✅")?"var(--c-green)":"var(--c-red)",marginBottom:7}}>{msg}</div>}
+      <button onClick={save} style={{width:"100%",padding:"9px",background:"var(--surf)",border:"1px solid var(--bord)",borderRadius:9,color:"var(--cream)",cursor:"pointer",fontFamily:"var(--fb,inherit)",fontSize:14}}>Şifreyi Güncelle</button>
     </div>
   );
 };
@@ -2051,10 +2068,11 @@ const StaffManager = ({ tables, onChange }) => {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const inp = { width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 8 };
-  const box = { padding: "13px 15px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 14, marginBottom: 14 };
-  const baslik = { fontFamily: "var(--fh)", fontSize: 13, color: "var(--gsoft)", marginBottom: 10 };
-  const mini = (rgb) => ({ padding: "5px 10px", background: `rgba(${rgb},.14)`, border: `1px solid rgba(${rgb},.4)`, borderRadius: 8, color: `rgb(${rgb})`, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" });
+  const inp = { width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 15, outline: "none", marginBottom: 8 };
+  const box = { padding: "16px 18px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 16, marginBottom: 16, boxShadow: "0 1px 2px rgba(70,45,20,.04)" };
+  const baslik = { fontFamily: "var(--fh)", fontSize: 19, color: "var(--cream)", marginBottom: 12, display: "flex", alignItems: "center", gap: 9 };
+  const bIk = { color: "var(--gsoft)" };
+  const mini = (rgb) => ({ padding: "6px 11px", background: `rgba(${rgb},.12)`, border: `1px solid rgba(${rgb},.4)`, borderRadius: 9, color: `rgb(${koyu(rgb)})`, cursor: "pointer", fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 });
 
   const add = async () => {
     if (busy) return;
@@ -2108,77 +2126,77 @@ const StaffManager = ({ tables, onChange }) => {
       <div>
         {/* Personel listesi */}
         <div style={box}>
-          <div style={baslik}>👥 Personel ({list.filter(p => p.aktif).length} aktif)</div>
+          <div style={baslik}><Ik i={IconUsers} s={22} style={bIk} />Personel <span style={{ fontFamily: "var(--fb)", fontSize: 14, color: "var(--muted)" }}>{list.filter(p => p.aktif).length} aktif</span></div>
           {list.map(p => (
-            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 0", borderBottom: "1px solid var(--bord)", opacity: p.aktif ? 1 : .5 }}>
-              <span style={{ fontSize: 18, width: 24, textAlign: "center" }}>{ROL_IKON[p.rol] || "👤"}</span>
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--bord)", opacity: p.aktif ? 1 : .5 }}>
+              <span style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--gdim)", color: "var(--gsoft)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Ik i={ROL_IK[p.rol] || IconUser} s={21} /></span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14.5, color: "var(--cream)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.ad}</div>
-                <div style={{ fontSize: 11.5, color: "var(--muted)" }}>
+                <div style={{ fontSize: 15.5, fontWeight: 600, color: "var(--cream)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.ad}</div>
+                <div style={{ fontSize: 13, color: "var(--muted)" }}>
                   {ROL_AD[p.rol] || p.rol} · {p.tel}{!p.aktif ? " · pasif" : p.gecici ? " · geçici şifre" : ""}
                   {p.rol === "garson" && p.aktif && (() => { const m = tables.filter(t => t.garson_id === p.id).map(t => t.masa_no).sort((a, b) => a - b); return m.length ? ` · Masa: ${m.join(", ")}` : " · masa atanmamış"; })()}
                 </div>
               </div>
               {p.rol !== "isletmeci" && <>
-                <button onClick={() => resetPass(p)} style={mini("106,170,224")} title="Geçici şifre ver">🔑</button>
+                <button onClick={() => resetPass(p)} style={mini("106,170,224")} title="Geçici şifre ver"><Ik i={IconKey} s={16} />Şifre</button>
                 <button onClick={() => toggle(p)} style={mini(p.aktif ? "224,96,96" : "58,170,106")}>{p.aktif ? "Pasifleştir" : "Aktifleştir"}</button>
               </>}
             </div>
           ))}
           {eksik.length > 0 && (
-            <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 10, lineHeight: 1.5 }}>
-              ℹ️ {eksik.map(r => ROL_AD[r]).join(" ve ")} hesabı yok. {eksik.includes("mutfak") && "Mutfak hesabı açılana kadar mutfak onayı ve “hazır” adımlarını garsonlar yapar. "}{eksik.includes("kasa") && "Kasa hesabı açılana kadar ödeme onayını garsonlar verir."}
+            <div style={{ fontSize: 14, color: "var(--muted)", marginTop: 12, lineHeight: 1.55, display: "flex", gap: 8, padding: "10px 12px", background: "rgba(58,106,154,.07)", borderRadius: 10 }}>
+              <Ik i={IconInfoCircle} s={20} style={{ color: "var(--c-blue)", marginTop: 1 }} /><span>{eksik.map(r => ROL_AD[r]).join(" ve ")} hesabı yok. {eksik.includes("mutfak") && "Mutfak hesabı açılana kadar mutfak onayı ve “hazır” adımlarını garsonlar yapar. "}{eksik.includes("kasa") && "Kasa hesabı açılana kadar ödeme onayını garsonlar verir."}</span>
             </div>
           )}
         </div>
 
         {/* Personel ekle */}
         <div style={{ ...box, border: "1px solid var(--gdim)" }}>
-          <div style={baslik}>➕ Personel Ekle</div>
+          <div style={baslik}><Ik i={IconUserPlus} s={22} style={bIk} />Personel Ekle</div>
           <input value={form.ad} onChange={e => setForm({ ...form, ad: e.target.value })} placeholder="Ad Soyad" style={inp} />
           <input value={form.tel} onChange={e => setForm({ ...form, tel: e.target.value })} type="tel" placeholder="Telefon (05xx xxx xx xx) — giriş için" style={inp} />
           <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
             {["garson", "mutfak", "kasa"].map(r => (
-              <button key={r} onClick={() => setForm({ ...form, rol: r })} style={{ flex: 1, padding: "9px 4px", background: form.rol === r ? "var(--gdim)" : "var(--surf)", border: `1px solid ${form.rol === r ? "var(--gold)" : "var(--bord)"}`, borderRadius: 9, color: form.rol === r ? "var(--gsoft)" : "var(--muted)", cursor: "pointer", fontSize: 13 }}>{ROL_IKON[r]} {ROL_AD[r]}</button>
+              <button key={r} onClick={() => setForm({ ...form, rol: r })} style={{ flex: 1, padding: "9px 4px", background: form.rol === r ? "var(--gdim)" : "var(--surf)", border: `1px solid ${form.rol === r ? "var(--gold)" : "var(--bord)"}`, borderRadius: 10, color: form.rol === r ? "var(--gsoft)" : "var(--muted)", cursor: "pointer", fontSize: 15, fontWeight: form.rol === r ? 600 : 500, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Ik i={ROL_IK[r]} s={19} />{ROL_AD[r]}</button>
             ))}
           </div>
           <input value={form.sifre} onChange={e => setForm({ ...form, sifre: e.target.value })} placeholder="Geçici şifre (en az 6 karakter)" style={inp} />
-          {msg && <div style={{ fontSize: 13, color: msg.ok ? "#3aaa6a" : "#e06060", marginBottom: 8, lineHeight: 1.5 }}>{msg.text}</div>}
-          <button onClick={add} disabled={busy || !form.ad || !form.tel || form.sifre.length < 6} style={{ width: "100%", padding: "11px", background: (busy || !form.ad || !form.tel || form.sifre.length < 6) ? "var(--surf)" : "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 10, color: (busy || !form.ad || !form.tel || form.sifre.length < 6) ? "var(--muted)" : "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 }}>Personeli Ekle</button>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8, lineHeight: 1.5 }}>Her personel kendi telefonu ve şifresiyle girer. Bir hesap aynı anda tek cihazda açık kalır; mutfak tableti ve kasa bilgisayarı için ayrı hesap açın.</div>
+          {msg && <div style={{ fontSize: 14, color: msg.ok ? "var(--c-green)" : "var(--c-red)", marginBottom: 8, lineHeight: 1.5 }}>{msg.text}</div>}
+          <button onClick={add} disabled={busy || !form.ad || !form.tel || form.sifre.length < 6} style={{ width: "100%", padding: "11px", background: (busy || !form.ad || !form.tel || form.sifre.length < 6) ? "var(--surf)" : "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 10, color: (busy || !form.ad || !form.tel || form.sifre.length < 6) ? "var(--muted)" : "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 15, fontWeight: 600 }}>Personeli Ekle</button>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 8, lineHeight: 1.5 }}>Her personel kendi telefonu ve şifresiyle girer. Bir hesap aynı anda tek cihazda açık kalır; mutfak tableti ve kasa bilgisayarı için ayrı hesap açın.</div>
         </div>
       </div>
 
       {/* Masa – garson ataması */}
       <div>
         <div style={box}>
-          <div style={baslik}>🛎 Masa – Garson Ataması</div>
+          <div style={baslik}><Ik i={IconArmchair} s={22} style={bIk} />Masa – Garson Ataması</div>
           {garsonlar.length === 0 ? (
-            <div style={{ fontSize: 13, color: "var(--muted)", fontStyle: "italic" }}>Önce garson hesabı ekleyin.</div>
+            <div style={{ fontSize: 14, color: "var(--muted)", fontStyle: "italic" }}>Önce garson hesabı ekleyin.</div>
           ) : <>
-            <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 9, lineHeight: 1.5 }}>1) Garsonu seçin · 2) Masalara dokunun. Sipariş önce o masanın garsonuna düşer. Atanmamış masaların siparişlerini bütün garsonlar görür.</div>
+            <div style={{ fontSize: 13.5, color: "var(--muted)", marginBottom: 9, lineHeight: 1.5 }}>1) Garsonu seçin · 2) Masalara dokunun. Sipariş önce o masanın garsonuna düşer. Atanmamış masaların siparişlerini bütün garsonlar görür.</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
               {garsonlar.map(g => (
-                <button key={g.id} onClick={() => setSel(g.id)} style={{ padding: "8px 13px", background: sel === g.id ? "var(--gdim)" : "var(--surf)", border: `1px solid ${sel === g.id ? "var(--gold)" : "var(--bord)"}`, borderRadius: 20, color: sel === g.id ? "var(--gsoft)" : "var(--cream)", cursor: "pointer", fontSize: 13 }}>🛎 {g.ad}</button>
+                <button key={g.id} onClick={() => setSel(g.id)} style={{ padding: "8px 13px", background: sel === g.id ? "var(--gdim)" : "var(--surf)", border: `1px solid ${sel === g.id ? "var(--gold)" : "var(--bord)"}`, borderRadius: 20, color: sel === g.id ? "var(--gsoft)" : "var(--cream)", cursor: "pointer", fontSize: 14, display: "inline-flex", alignItems: "center", gap: 6 }}><Ik i={IconUser} s={17} />{g.ad}</button>
               ))}
-              <button onClick={() => setSel("")} style={{ padding: "8px 13px", background: sel === "" ? "rgba(192,64,64,.18)" : "var(--surf)", border: `1px solid ${sel === "" ? "rgba(192,64,64,.6)" : "var(--bord)"}`, borderRadius: 20, color: sel === "" ? "#e06060" : "var(--muted)", cursor: "pointer", fontSize: 13 }}>✕ Atamayı kaldır</button>
+              <button onClick={() => setSel("")} style={{ padding: "8px 13px", background: sel === "" ? "rgba(192,64,64,.18)" : "var(--surf)", border: `1px solid ${sel === "" ? "rgba(192,64,64,.6)" : "var(--bord)"}`, borderRadius: 20, color: sel === "" ? "var(--c-red)" : "var(--muted)", cursor: "pointer", fontSize: 14 }}>✕ Atamayı kaldır</button>
             </div>
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               <input value={aralik} onChange={e => setAralik(e.target.value)} onKeyDown={e => { if (e.key === "Enter") assignRange(); }} placeholder="Toplu: 1-10 veya 3,5,8" style={{ ...inp, marginBottom: 0, flex: 1 }} />
-              <button onClick={assignRange} disabled={!aralik.trim()} style={{ padding: "9px 14px", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, color: "var(--gsoft)", cursor: "pointer", fontSize: 13, whiteSpace: "nowrap" }}>{sel ? `→ ${selAd.split(" ")[0]}` : "Kaldır"}</button>
+              <button onClick={assignRange} disabled={!aralik.trim()} style={{ padding: "9px 14px", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, color: "var(--gsoft)", cursor: "pointer", fontSize: 14, whiteSpace: "nowrap" }}>{sel ? `→ ${selAd.split(" ")[0]}` : "Kaldır"}</button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(74px,1fr))", gap: 7 }}>
               {[...tables].sort((a, b) => a.masa_no - b.masa_no).map(t => {
                 const secili = sel && t.garson_id === sel;
                 return (
                   <button key={t.id} onClick={() => assign([t.id])} disabled={(t.garson_id || "") === sel} style={{ padding: "8px 4px", background: secili ? "var(--gdim)" : "var(--surf)", border: `1px solid ${secili ? "var(--gold)" : "var(--bord)"}`, borderRadius: 10, cursor: (t.garson_id || "") === sel ? "default" : "pointer", textAlign: "center" }}>
-                    <div style={{ fontFamily: "var(--fh)", fontSize: 16, color: "var(--cream)" }}>{t.masa_no}</div>
-                    <div style={{ fontSize: 10, color: t.garson_ad ? "var(--gsoft)" : "var(--muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.garson_ad ? t.garson_ad.split(" ")[0] : "—"}</div>
+                    <div style={{ fontFamily: "var(--fh)", fontSize: 17, color: "var(--cream)" }}>{t.masa_no}</div>
+                    <div style={{ fontSize: 12, color: t.garson_ad ? "var(--gsoft)" : "var(--muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.garson_ad ? t.garson_ad.split(" ")[0] : "—"}</div>
                   </button>
                 );
               })}
             </div>
-            {tables.length === 0 && <div style={{ fontSize: 13, color: "var(--muted)", fontStyle: "italic" }}>Henüz masa eklenmedi (Masalar sekmesi).</div>}
+            {tables.length === 0 && <div style={{ fontSize: 14, color: "var(--muted)", fontStyle: "italic" }}>Henüz masa eklenmedi (Masalar sekmesi).</div>}
           </>}
         </div>
       </div>
@@ -2200,15 +2218,15 @@ const RoleHeader = ({ staff, ikon, rolAd, sag, onLogout, err }) => {
     <>
       <div style={{ padding: "11px 15px", borderBottom: "1px solid var(--bord)", display: "flex", alignItems: "center", gap: 10, background: "var(--surf)", flexShrink: 0 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: "var(--fh)", fontSize: 17, color: "var(--cream)" }}>{ikon} {rolAd} <span style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>· {staff.venue_ad}</span></div>
-          <div style={{ fontSize: 11.5, color: "var(--muted)" }}>{staff.ad}</div>
+          <div style={{ fontFamily: "var(--fh)", fontSize: 20, color: "var(--cream)", display: "flex", alignItems: "center", gap: 8 }}><Ik i={ikon} s={23} style={{ color: "var(--gsoft)" }} />{rolAd} <span style={{ fontFamily: "var(--fb)", fontSize: 14, color: "var(--muted)" }}>· {staff.venue_ad}</span></div>
+          <div style={{ fontSize: 13, color: "var(--muted)" }}>{staff.ad}</div>
         </div>
         {sag}
-        <button onClick={() => setShowPass(v => !v)} title="Şifre değiştir" style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 10px", color: "var(--muted)", cursor: "pointer", fontSize: 12 }}>🔑</button>
-        <button onClick={onLogout} style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 11px", color: "var(--muted)", cursor: "pointer", fontSize: 12 }}>Çıkış</button>
+        <button onClick={() => setShowPass(v => !v)} title="Şifre değiştir" style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "7px 10px", color: "var(--muted)", cursor: "pointer", display: "flex", alignItems: "center" }}><Ik i={IconLock} s={18} /></button>
+        <button onClick={onLogout} style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "7px 11px", color: "var(--muted)", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", gap: 5 }}><Ik i={IconLogout} s={18} />Çıkış</button>
       </div>
       {showPass && <div style={{ padding: "12px 15px", background: "var(--surf2)", borderBottom: "1px solid var(--bord)", flexShrink: 0 }}><div style={{ maxWidth: 360 }}><ChangePassInline /></div></div>}
-      {err && <div style={{ padding: "7px 15px", background: "rgba(192,64,64,.18)", color: "#e06060", fontSize: 12.5, textAlign: "center", flexShrink: 0 }}>⚠️ {err}</div>}
+      {err && <div style={{ padding: "7px 15px", background: "rgba(192,64,64,.18)", color: "var(--c-red)", fontSize: 13.5, textAlign: "center", flexShrink: 0 }}>⚠️ {err}</div>}
     </>
   );
 };
@@ -2260,7 +2278,7 @@ const KitchenPanel = ({ staff, onLogout }) => {
     <div key={o.id} style={{ padding: "14px 15px", background: "var(--surf2)", border: `1px solid rgba(${rgb},.55)`, borderRadius: 14, marginBottom: 11, animation: "fadeUp .3s ease-out" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 9 }}>
         <div style={{ fontFamily: "var(--fh)", fontSize: 26, color: "var(--gsoft)" }}>Masa {o.masa_no}</div>
-        <div style={{ fontSize: 12.5, color: "var(--muted)" }}>🕐 {(o.teyit_at || o.created_at)?.slice(11, 16)} · {fmtSure(o.bekleme_sn || 0)}</div>
+        <div style={{ fontSize: 13.5, color: "var(--muted)" }}>🕐 {(o.teyit_at || o.created_at)?.slice(11, 16)} · {fmtSure(o.bekleme_sn || 0)}</div>
       </div>
       {(o.urunler || []).map((u, i) => (
         <div key={i} style={{ fontSize: 18, color: "var(--cream)", padding: "3px 0", lineHeight: 1.3 }}>
@@ -2268,31 +2286,31 @@ const KitchenPanel = ({ staff, onLogout }) => {
         </div>
       ))}
       {o.notlar && o.notlar.replace("[Garson]", "").trim() && (
-        <div style={{ marginTop: 8, padding: "7px 10px", background: "rgba(58,106,154,.16)", border: "1px solid rgba(58,106,154,.45)", borderRadius: 9, fontSize: 14.5, color: "#8fc0ea" }}>📝 {o.notlar.replace("[Garson]", "").trim()}</div>
+        <div style={{ marginTop: 8, padding: "7px 10px", background: "rgba(58,106,154,.16)", border: "1px solid rgba(58,106,154,.45)", borderRadius: 9, fontSize: 15.5, color: "#8fc0ea" }}>📝 {o.notlar.replace("[Garson]", "").trim()}</div>
       )}
       {btn}
     </div>
   );
   const bigBtn = (label, onClick, rgb) => (
-    <button onClick={onClick} style={{ width: "100%", marginTop: 12, padding: "13px", background: `rgba(${rgb},.2)`, border: `1px solid rgba(${rgb},.6)`, borderRadius: 11, color: `rgb(${rgb})`, cursor: "pointer", fontFamily: "var(--fh)", fontSize: 16, fontWeight: 600 }}>{label}</button>
+    <button onClick={onClick} style={{ width: "100%", marginTop: 12, padding: "13px", background: `rgba(${rgb},.2)`, border: `1px solid rgba(${rgb},.6)`, borderRadius: 11, color: `rgb(${koyu(rgb)})`, cursor: "pointer", fontFamily: "var(--fh)", fontSize: 17, fontWeight: 600 }}>{label}</button>
   );
   const sutun = (baslik, list, renk, bos, render) => (
     <div style={{ minWidth: 0 }}>
-      <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: renk, letterSpacing: 1, marginBottom: 10, paddingBottom: 7, borderBottom: `2px solid ${renk}` }}>{baslik} ({list.length})</div>
-      {list.length === 0 ? <div style={{ fontSize: 13, color: "var(--muted)", fontStyle: "italic", padding: "14px 2px" }}>{bos}</div> : list.map(render)}
+      <div style={{ fontFamily: "var(--fh)", fontSize: 14, color: renk, letterSpacing: 1, marginBottom: 10, paddingBottom: 7, borderBottom: `2px solid ${renk}` }}>{baslik} ({list.length})</div>
+      {list.length === 0 ? <div style={{ fontSize: 14, color: "var(--muted)", fontStyle: "italic", padding: "14px 2px" }}>{bos}</div> : list.map(render)}
     </div>
   );
 
   return (
     <div style={{ minHeight: "100vh", height: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
-      <RoleHeader staff={staff} ikon="👨‍🍳" rolAd="Mutfak" onLogout={onLogout} err={err}
-        sag={gelen.length > 0 && <div style={{ background: "var(--red)", color: "#fff", borderRadius: 20, padding: "3px 12px", fontSize: 12.5, fontWeight: 600, animation: "blink 1.4s ease-in-out infinite" }}>{gelen.length} yeni</div>} />
+      <RoleHeader staff={staff} ikon={IconChefHat} rolAd="Mutfak" onLogout={onLogout} err={err}
+        sag={gelen.length > 0 && <div style={{ background: "var(--red)", color: "#fff", borderRadius: 20, padding: "3px 12px", fontSize: 13.5, fontWeight: 600, animation: "blink 1.4s ease-in-out infinite" }}>{gelen.length} yeni</div>} />
       <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
         {loading ? <div style={{ textAlign: "center", color: "var(--muted)", marginTop: 60 }}>Yükleniyor...</div> : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(270px,1fr))", gap: 16, alignItems: "start" }}>
-            {sutun("📨 YENİ GELEN", gelen, "#e06060", "Yeni sipariş yok", o => kart(o, "192,64,64", bigBtn("✓ Onayla — Hazırlamaya başla", () => act(o.id, "hazırlanıyor"), "224,150,60")))}
+            {sutun("📨 YENİ GELEN", gelen, "var(--c-red)", "Yeni sipariş yok", o => kart(o, "192,64,64", bigBtn("✓ Onayla — Hazırlamaya başla", () => act(o.id, "hazırlanıyor"), "224,150,60")))}
             {sutun("🔥 HAZIRLANIYOR", hazirlanan, "var(--gsoft)", "Hazırlanan sipariş yok", o => kart(o, "201,145,58", bigBtn("✅ Hazır — Garsona bildir", () => act(o.id, "hazır"), "58,170,106")))}
-            {sutun("✅ HAZIR — GARSON BEKLENİYOR", hazir, "#3aaa6a", "Bekleyen yok", o => kart(o, "58,138,92", <div style={{ marginTop: 10, fontSize: 12.5, color: "var(--muted)", fontStyle: "italic" }}>Garsona bildirildi{o.hazir_at ? ` · ${o.hazir_at.slice(11, 16)}` : ""}</div>))}
+            {sutun("✅ HAZIR — GARSON BEKLENİYOR", hazir, "var(--c-green)", "Bekleyen yok", o => kart(o, "58,138,92", <div style={{ marginTop: 10, fontSize: 13.5, color: "var(--muted)", fontStyle: "italic" }}>Garsona bildirildi{o.hazir_at ? ` · ${o.hazir_at.slice(11, 16)}` : ""}</div>))}
           </div>
         )}
       </div>
@@ -2356,27 +2374,27 @@ const CashierPanel = ({ staff, onLogout }) => {
     }, []);
   };
   const payBtn = (x, tip, label) => (
-    <button onClick={() => setOnay({ ses: x, tip })} disabled={x.teyitsiz_n > 0} style={{ flex: 1, padding: "12px 6px", background: x.teyitsiz_n > 0 ? "var(--surf)" : "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 11, color: x.teyitsiz_n > 0 ? "var(--muted)" : "#0b0704", cursor: x.teyitsiz_n > 0 ? "not-allowed" : "pointer", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 }}>{label}</button>
+    <button onClick={() => setOnay({ ses: x, tip })} disabled={x.teyitsiz_n > 0} style={{ flex: 1, padding: "12px 6px", background: x.teyitsiz_n > 0 ? "var(--surf)" : "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 11, color: x.teyitsiz_n > 0 ? "var(--muted)" : "#0b0704", cursor: x.teyitsiz_n > 0 ? "not-allowed" : "pointer", fontFamily: "var(--fh)", fontSize: 15, fontWeight: 600 }}>{label}</button>
   );
 
   return (
     <div style={{ minHeight: "100vh", height: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
-      <RoleHeader staff={staff} ikon="💰" rolAd="Kasa" onLogout={onLogout} err={err}
-        sag={isteyen > 0 && <div style={{ background: "var(--red)", color: "#fff", borderRadius: 20, padding: "3px 12px", fontSize: 12.5, fontWeight: 600, animation: "blink 1.4s ease-in-out infinite" }}>{isteyen} hesap</div>} />
+      <RoleHeader staff={staff} ikon={IconCashRegister} rolAd="Kasa" onLogout={onLogout} err={err}
+        sag={isteyen > 0 && <div style={{ background: "var(--red)", color: "#fff", borderRadius: 20, padding: "3px 12px", fontSize: 13.5, fontWeight: 600, animation: "blink 1.4s ease-in-out infinite" }}>{isteyen} hesap</div>} />
       <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
         {loading ? <div style={{ textAlign: "center", color: "var(--muted)", marginTop: 60 }}>Yükleniyor...</div> : <>
           {/* Bugünkü tahsilat */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 9, marginBottom: 16 }}>
             {[["💵 Nakit", tNakit], ["💳 Kart", tKart], ["Bugün toplam", tNakit + tKart]].map(([l, v], i) => (
               <div key={i} style={{ padding: "11px 12px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 12 }}>
-                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 3 }}>{l}</div>
+                <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 3 }}>{l}</div>
                 <div style={{ fontFamily: "var(--fh)", fontSize: 20, color: "var(--gsoft)" }}>{v}₺</div>
               </div>
             ))}
           </div>
 
-          <div style={{ fontFamily: "var(--fh)", fontSize: 12, color: "var(--muted)", letterSpacing: 1, marginBottom: 9 }}>AÇIK HESAPLAR ({hesaplar.length})</div>
-          {hesaplar.length === 0 && <div style={{ textAlign: "center", color: "var(--muted)", margin: "40px 0" }}><div style={{ fontSize: 36 }}>🧾</div><div style={{ marginTop: 12, fontSize: 14, fontStyle: "italic" }}>Açık hesap yok</div></div>}
+          <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--muted)", letterSpacing: 1, marginBottom: 9 }}>AÇIK HESAPLAR ({hesaplar.length})</div>
+          {hesaplar.length === 0 && <div style={{ textAlign: "center", color: "var(--muted)", margin: "40px 0" }}><div style={{ fontSize: 36 }}>🧾</div><div style={{ marginTop: 12, fontSize: 15, fontStyle: "italic" }}>Açık hesap yok</div></div>}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12, alignItems: "start" }}>
             {hesaplar.map(x => {
               const detay = acik === x.id;
@@ -2386,14 +2404,14 @@ const CashierPanel = ({ staff, onLogout }) => {
                     <div style={{ fontFamily: "var(--fh)", fontSize: 22, color: "var(--cream)" }}>Masa {x.masa_no}</div>
                     <div style={{ fontFamily: "var(--fh)", fontSize: 26, color: "var(--gsoft)" }}>{x.toplam}₺</div>
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{x.siparis_n} sipariş · açılış {x.created_at?.slice(11, 16)}</div>
-                  {!!x.hesap_istendi && <div style={{ marginTop: 8, padding: "6px 10px", background: "rgba(201,145,58,.16)", border: "1px solid rgba(201,145,58,.45)", borderRadius: 9, fontSize: 13.5, color: "var(--gsoft)", animation: "blink 2s ease-in-out infinite" }}>🔔 Hesap istedi · {ODEME_AD[x.odeme_tip] || x.odeme_tip || ""}</div>}
-                  {x.teyitsiz_n > 0 && <div style={{ marginTop: 8, fontSize: 12.5, color: "#e06060" }}>⏳ {x.teyitsiz_n} sipariş garson teyidi bekliyor — teyit ya da iptal edilmeden hesap kapatılamaz.</div>}
-                  <button onClick={() => setAcik(detay ? null : x.id)} style={{ marginTop: 8, background: "none", border: "none", color: "var(--muted)", fontSize: 12.5, cursor: "pointer", padding: 0, textDecoration: "underline" }}>{detay ? "Detayı gizle" : "Hesap detayı"}</button>
+                  <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}>{x.siparis_n} sipariş · açılış {x.created_at?.slice(11, 16)}</div>
+                  {!!x.hesap_istendi && <div style={{ marginTop: 8, padding: "6px 10px", background: "rgba(201,145,58,.16)", border: "1px solid rgba(201,145,58,.45)", borderRadius: 9, fontSize: 14.5, color: "var(--gsoft)", animation: "blink 2s ease-in-out infinite" }}>🔔 Hesap istedi · {ODEME_AD[x.odeme_tip] || x.odeme_tip || ""}</div>}
+                  {x.teyitsiz_n > 0 && <div style={{ marginTop: 8, fontSize: 13.5, color: "var(--c-red)" }}>⏳ {x.teyitsiz_n} sipariş garson teyidi bekliyor — teyit ya da iptal edilmeden hesap kapatılamaz.</div>}
+                  <button onClick={() => setAcik(detay ? null : x.id)} style={{ marginTop: 8, background: "none", border: "none", color: "var(--muted)", fontSize: 13.5, cursor: "pointer", padding: 0, textDecoration: "underline" }}>{detay ? "Detayı gizle" : "Hesap detayı"}</button>
                   {detay && (
                     <div style={{ marginTop: 8, borderTop: "1px solid var(--bord)", paddingTop: 8 }}>
                       {kalemler(x.id).map((u, i) => (
-                        <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, color: "var(--cream)", padding: "2px 0" }}>
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 14.5, color: "var(--cream)", padding: "2px 0" }}>
                           <span><strong style={{ color: "var(--gsoft)" }}>{u.adet}×</strong> {u.ad}</span><span style={{ color: "var(--muted)" }}>{u.adet * u.fiyat}₺</span>
                         </div>
                       ))}
@@ -2411,10 +2429,10 @@ const CashierPanel = ({ staff, onLogout }) => {
           {/* Bugün kapananlar */}
           {kapanan.length > 0 && (
             <div style={{ marginTop: 22 }}>
-              <button onClick={() => setGecmis(v => !v)} style={{ background: "none", border: "none", color: "var(--muted)", fontFamily: "var(--fh)", fontSize: 12, letterSpacing: 1, cursor: "pointer", padding: 0 }}>BUGÜN KAPANANLAR ({kapanan.length}) {gecmis ? "▲" : "▼"}</button>
+              <button onClick={() => setGecmis(v => !v)} style={{ background: "none", border: "none", color: "var(--muted)", fontFamily: "var(--fh)", fontSize: 13, letterSpacing: 1, cursor: "pointer", padding: 0 }}>BUGÜN KAPANANLAR ({kapanan.length}) {gecmis ? "▲" : "▼"}</button>
               {gecmis && kapanan.map(x => (
-                <div key={x.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "9px 12px", marginTop: 7, background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 10, fontSize: 13.5, color: "var(--cream)" }}>
-                  <span>Masa {x.masa_no} <span style={{ color: "var(--muted)", fontSize: 12 }}>· {x.odeme_at?.slice(11, 16)}</span></span>
+                <div key={x.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "9px 12px", marginTop: 7, background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 10, fontSize: 14.5, color: "var(--cream)" }}>
+                  <span>Masa {x.masa_no} <span style={{ color: "var(--muted)", fontSize: 13 }}>· {x.odeme_at?.slice(11, 16)}</span></span>
                   <span>{ODEME_AD[x.odeme_tip] || x.odeme_tip} <strong style={{ color: "var(--gsoft)", marginLeft: 6 }}>{x.odeme_toplam}₺</strong></span>
                 </div>
               ))}
@@ -2429,11 +2447,11 @@ const CashierPanel = ({ staff, onLogout }) => {
           <div style={{ width: "100%", maxWidth: 360, background: "var(--surf)", borderRadius: 20, padding: "24px 20px", textAlign: "center", animation: "bounce .35s ease-out" }}>
             <div style={{ fontFamily: "var(--fh)", fontSize: 19, color: "var(--cream)" }}>Masa {onay.ses.masa_no}</div>
             <div style={{ fontFamily: "var(--fh)", fontSize: 38, color: "var(--gsoft)", margin: "8px 0 2px" }}>{onay.ses.toplam}₺</div>
-            <div style={{ fontSize: 15, color: "var(--cream)", marginBottom: 6 }}>{ODEME_AD[onay.tip]} olarak tahsil edildi mi?</div>
-            <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 18, lineHeight: 1.5 }}>Onaylayınca masa hesabı kapanır ve müşterinin ekranında teşekkür mesajı çıkar.</div>
+            <div style={{ fontSize: 16, color: "var(--cream)", marginBottom: 6 }}>{ODEME_AD[onay.tip]} olarak tahsil edildi mi?</div>
+            <div style={{ fontSize: 13.5, color: "var(--muted)", marginBottom: 18, lineHeight: 1.5 }}>Onaylayınca masa hesabı kapanır ve müşterinin ekranında teşekkür mesajı çıkar.</div>
             <div style={{ display: "flex", gap: 9 }}>
-              <button onClick={() => setOnay(null)} disabled={busy} style={{ flex: 1, padding: "12px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 12, color: "var(--muted)", cursor: "pointer", fontSize: 14 }}>Vazgeç</button>
-              <button onClick={pay} disabled={busy} style={{ flex: 2, padding: "12px", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 12, color: "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 15, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center" }}>{busy ? <Spin /> : "✓ Ödeme Alındı"}</button>
+              <button onClick={() => setOnay(null)} disabled={busy} style={{ flex: 1, padding: "12px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 12, color: "var(--muted)", cursor: "pointer", fontSize: 15 }}>Vazgeç</button>
+              <button onClick={pay} disabled={busy} style={{ flex: 2, padding: "12px", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 12, color: "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 16, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center" }}>{busy ? <Spin /> : "✓ Ödeme Alındı"}</button>
             </div>
           </div>
         </div>
@@ -2521,19 +2539,19 @@ const AdminPanel = ({ staff, onLogout }) => {
   };
   const formOk = form.venue_ad.trim().length > 1 && form.ad.trim().length > 1 && form.tel.replace(/\D/g, "").length >= 10 && form.gecici_sifre.trim().length >= 6;
 
-  const inp = { width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 8 };
-  const box = { padding: "14px 16px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 14 };
-  const mini = rgb => ({ padding: "7px 11px", background: `rgba(${rgb},.14)`, border: `1px solid rgba(${rgb},.4)`, borderRadius: 9, color: `rgb(${rgb})`, cursor: "pointer", fontSize: 12.5, whiteSpace: "nowrap" });
-  const gold = aktif => ({ padding: "12px", background: aktif ? "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)" : "var(--surf)", border: "none", borderRadius: 10, color: aktif ? "#0b0704" : "var(--muted)", cursor: aktif ? "pointer" : "not-allowed", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 });
+  const inp = { width: "100%", background: "var(--surf)", border: "1px solid var(--bord)", borderRadius: 9, padding: "10px 13px", color: "var(--cream)", fontSize: 15, outline: "none", marginBottom: 8 };
+  const box = { padding: "16px 18px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 16, boxShadow: "0 1px 2px rgba(70,45,20,.04)" };
+  const mini = rgb => ({ padding: "7px 11px", background: `rgba(${rgb},.14)`, border: `1px solid rgba(${rgb},.4)`, borderRadius: 9, color: `rgb(${koyu(rgb)})`, cursor: "pointer", fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 });
+  const gold = aktif => ({ padding: "12px", background: aktif ? "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)" : "var(--surf)", border: "none", borderRadius: 10, color: aktif ? "#0b0704" : "var(--muted)", cursor: aktif ? "pointer" : "not-allowed", fontFamily: "var(--fh)", fontSize: 15, fontWeight: 600 });
   const chip = (id, label, n, rgb) => (
     <button key={id} onClick={() => setFiltre(id)} style={{ padding: "10px 12px", textAlign: "left", background: filtre === id ? `rgba(${rgb},.16)` : "var(--surf2)", border: `1px solid ${filtre === id ? `rgba(${rgb},.7)` : "var(--bord)"}`, borderRadius: 12, cursor: "pointer" }}>
-      <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>{label}</div>
-      <div style={{ fontFamily: "var(--fh)", fontSize: 22, color: `rgb(${rgb})` }}>{n}</div>
+      <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 2 }}>{label}</div>
+      <div style={{ fontFamily: "var(--fh)", fontSize: 22, color: `rgb(${koyu(rgb)})` }}>{n}</div>
     </button>
   );
   const durumBadge = v => {
     const [l, rgb] = v.durum === "askida" ? ["⏸ Askıda", "224,96,96"] : v.durum === "lisans_bitti" ? ["⛔ Lisans bitti", "224,96,96"] : yakinda(v) ? ["⚠ Lisans bitiyor", "232,184,109"] : ["● Aktif", "58,170,106"];
-    return <span style={{ fontSize: 11.5, padding: "3px 10px", borderRadius: 20, fontWeight: 600, background: `rgba(${rgb},.16)`, color: `rgb(${rgb})`, whiteSpace: "nowrap" }}>{l}</span>;
+    return <span style={{ fontSize: 13, padding: "3px 10px", borderRadius: 20, fontWeight: 600, background: `rgba(${rgb},.16)`, color: `rgb(${koyu(rgb)})`, whiteSpace: "nowrap" }}>{l}</span>;
   };
   const lisansYazi = v => v.lisans_bitis === null ? "Süresiz"
     : v.kalan_gun < 0 ? `${trTarih(v.lisans_bitis)} · ${-v.kalan_gun} gün önce doldu`
@@ -2547,14 +2565,14 @@ const AdminPanel = ({ staff, onLogout }) => {
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
       <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--bord)", display: "flex", alignItems: "center", gap: 10, background: "var(--surf)", flexShrink: 0, position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: "var(--fh)", fontSize: 18, color: "var(--cream)" }}>🔴 Süper Admin <span style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>· Sanal Garson</span></div>
-          <div style={{ fontSize: 11.5, color: "var(--muted)" }}>{staff.ad}</div>
+          <div style={{ fontFamily: "var(--fh)", fontSize: 21, color: "var(--cream)", display: "flex", alignItems: "center", gap: 8 }}><Ik i={IconShieldCheck} s={24} style={{ color: "var(--gsoft)" }} />Süper Admin <span style={{ fontFamily: "var(--fb)", fontSize: 14, color: "var(--muted)" }}>· Sanal Garson</span></div>
+          <div style={{ fontSize: 13, color: "var(--muted)" }}>{staff.ad}</div>
         </div>
-        <button onClick={() => setShowPass(x => !x)} title="Şifre değiştir" style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 10px", color: "var(--muted)", cursor: "pointer", fontSize: 12 }}>🔑</button>
-        <button onClick={onLogout} style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 11px", color: "var(--muted)", cursor: "pointer", fontSize: 12 }}>Çıkış</button>
+        <button onClick={() => setShowPass(x => !x)} title="Şifre değiştir" style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "7px 10px", color: "var(--muted)", cursor: "pointer", display: "flex", alignItems: "center" }}><Ik i={IconLock} s={18} /></button>
+        <button onClick={onLogout} style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "7px 11px", color: "var(--muted)", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", gap: 5 }}><Ik i={IconLogout} s={18} />Çıkış</button>
       </div>
       {showPass && <div style={{ padding: "12px 16px", background: "var(--surf2)", borderBottom: "1px solid var(--bord)" }}><div style={{ maxWidth: 360 }}><ChangePassInline /></div></div>}
-      {err && <div style={{ padding: "7px 15px", background: "rgba(192,64,64,.18)", color: "#e06060", fontSize: 12.5, textAlign: "center" }}>⚠️ {err}</div>}
+      {err && <div style={{ padding: "7px 15px", background: "rgba(192,64,64,.18)", color: "var(--c-red)", fontSize: 13.5, textAlign: "center" }}>⚠️ {err}</div>}
 
       <div style={{ flex: 1, padding: 16, maxWidth: 1240, width: "100%", margin: "0 auto" }}>
         {/* Özet / filtre */}
@@ -2568,15 +2586,15 @@ const AdminPanel = ({ staff, onLogout }) => {
 
         <div style={{ display: "flex", gap: 9, marginBottom: 14, flexWrap: "wrap" }}>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 İşletme, yetkili, telefon ara" style={{ ...inp, marginBottom: 0, flex: "1 1 220px", background: "var(--surf2)" }} />
-          <button onClick={() => { setYeniAcik(x => !x); setMsg(null); }} style={{ ...gold(true), padding: "10px 18px" }}>{yeniAcik ? "✕ Vazgeç" : "➕ Yeni İşletme"}</button>
+          <button onClick={() => { setYeniAcik(x => !x); setMsg(null); }} style={{ ...gold(true), padding: "10px 18px", display: "flex", alignItems: "center", gap: 6 }}>{yeniAcik ? "✕ Vazgeç" : <><Ik i={IconPlus} s={19} st={2.2} />Yeni İşletme</>}</button>
         </div>
 
-        {msg && <div style={{ padding: "10px 14px", marginBottom: 14, borderRadius: 11, fontSize: 13.5, lineHeight: 1.5, background: msg.ok ? "rgba(58,138,92,.14)" : "rgba(192,64,64,.14)", border: `1px solid ${msg.ok ? "rgba(58,138,92,.45)" : "rgba(192,64,64,.45)"}`, color: msg.ok ? "#3aaa6a" : "#e06060", display: "flex", gap: 10 }}><span style={{ flex: 1 }}>{msg.text}</span><button onClick={() => setMsg(null)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 15 }}>✕</button></div>}
+        {msg && <div style={{ padding: "10px 14px", marginBottom: 14, borderRadius: 11, fontSize: 14.5, lineHeight: 1.5, background: msg.ok ? "rgba(58,138,92,.14)" : "rgba(192,64,64,.14)", border: `1px solid ${msg.ok ? "rgba(58,138,92,.45)" : "rgba(192,64,64,.45)"}`, color: msg.ok ? "var(--c-green)" : "var(--c-red)", display: "flex", gap: 10 }}><span style={{ flex: 1 }}>{msg.text}</span><button onClick={() => setMsg(null)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 16 }}>✕</button></div>}
 
         {/* Yeni işletme (ilk kayıt) */}
         {yeniAcik && (
           <div style={{ ...box, border: "1px solid var(--gdim)", marginBottom: 16 }}>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 14, color: "var(--gsoft)", marginBottom: 10 }}>➕ Yeni İşletme Kaydı</div>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 19, color: "var(--cream)", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}><Ik i={IconPlus} s={21} style={{ color: "var(--gsoft)" }} />Yeni İşletme Kaydı</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: "0 10px" }}>
               <input value={form.venue_ad} onChange={e => setForm({ ...form, venue_ad: e.target.value })} placeholder="İşletme adı *" style={inp} />
               <input value={form.ad} onChange={e => setForm({ ...form, ad: e.target.value })} placeholder="Yetkili adı soyadı *" style={inp} />
@@ -2585,10 +2603,10 @@ const AdminPanel = ({ staff, onLogout }) => {
               <input value={form.masa_limit} onChange={e => setForm({ ...form, masa_limit: e.target.value })} type="number" min="0" placeholder="Masa limiti (boş = sınırsız)" style={inp} />
               <input value={form.notlar} onChange={e => setForm({ ...form, notlar: e.target.value })} placeholder="Not (yalnızca siz görürsünüz)" style={inp} />
             </div>
-            <div style={{ fontSize: 12, color: "var(--muted)", margin: "2px 0 6px" }}>Lisans süresi</div>
+            <div style={{ fontSize: 13, color: "var(--muted)", margin: "2px 0 6px" }}>Lisans süresi</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
               {SURELER.map(([id, label]) => (
-                <button key={id} onClick={() => setForm({ ...form, sure: id })} style={{ padding: "8px 13px", background: form.sure === id ? "var(--gdim)" : "var(--surf)", border: `1px solid ${form.sure === id ? "var(--gold)" : "var(--bord)"}`, borderRadius: 20, color: form.sure === id ? "var(--gsoft)" : "var(--muted)", cursor: "pointer", fontSize: 13 }}>{label}</button>
+                <button key={id} onClick={() => setForm({ ...form, sure: id })} style={{ padding: "8px 13px", background: form.sure === id ? "var(--gdim)" : "var(--surf)", border: `1px solid ${form.sure === id ? "var(--gold)" : "var(--bord)"}`, borderRadius: 20, color: form.sure === id ? "var(--gsoft)" : "var(--muted)", cursor: "pointer", fontSize: 14 }}>{label}</button>
               ))}
             </div>
             <button onClick={addVenue} disabled={!formOk || busy} style={{ ...gold(formOk && !busy), width: "100%" }}>{busy ? "Kaydediliyor…" : "İşletmeyi Oluştur"}</button>
@@ -2605,20 +2623,20 @@ const AdminPanel = ({ staff, onLogout }) => {
                 <div style={{ fontFamily: "var(--fh)", fontSize: 18, color: "var(--cream)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{v.ad}</div>
                 {durumBadge(v)}
               </div>
-              <div style={{ fontSize: 13.5, color: "var(--cream)", lineHeight: 1.75 }}>
-                <div>🔑 <span style={{ color: v.durum === "lisans_bitti" ? "#e06060" : yakinda(v) ? "var(--gsoft)" : "var(--cream)" }}>{lisansYazi(v)}</span>{v.masa_limit > 0 && <span style={{ color: "var(--muted)", fontSize: 12.5 }}> · en çok {v.masa_limit} masa</span>}</div>
-                <div>👔 {v.yetkili_ad || "—"} <span style={{ color: "var(--muted)" }}>· {v.yetkili_tel || "telefon yok"}</span></div>
-                <div style={{ color: "var(--muted)", fontSize: 12.5 }}>🗓 Kayıt: {trTarih(v.created_at)}</div>
-                {v.notlar && <div style={{ color: "#6aaae0", fontSize: 12.5, fontStyle: "italic" }}>📝 {v.notlar}</div>}
+              <div style={{ fontSize: 14.5, color: "var(--cream)", lineHeight: 1.75 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Ik i={IconKey} s={18} style={{ color: "var(--gsoft)", flexShrink: 0 }} /><span style={{ color: v.durum === "lisans_bitti" ? "var(--c-red)" : yakinda(v) ? "var(--gsoft)" : "var(--cream)" }}>{lisansYazi(v)}</span>{v.masa_limit > 0 && <span style={{ color: "var(--muted)", fontSize: 13.5 }}> · en çok {v.masa_limit} masa</span>}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Ik i={IconBriefcase} s={18} style={{ color: "var(--gsoft)", flexShrink: 0 }} />{v.yetkili_ad || "—"} <span style={{ color: "var(--muted)" }}>· {v.yetkili_tel || "telefon yok"}</span></div>
+                <div style={{ color: "var(--muted)", fontSize: 13.5, display: "flex", alignItems: "center", gap: 8 }}><Ik i={IconCalendar} s={18} />Kayıt: {trTarih(v.created_at)}</div>
+                {v.notlar && <div style={{ color: "var(--c-blue)", fontSize: 13.5, fontStyle: "italic", display: "flex", alignItems: "center", gap: 8 }}><Ik i={IconNote} s={18} />{v.notlar}</div>}
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 11 }}>
-                <button onClick={() => { setMsg(null); setModal({ tip: "lisans", v, lisans_bitis: v.lisans_bitis || "", masa_limit: v.masa_limit > 0 ? String(v.masa_limit) : "", notlar: v.notlar || "" }); }} style={mini("232,184,109")}>🔑 Lisans</button>
+                <button onClick={() => { setMsg(null); setModal({ tip: "lisans", v, lisans_bitis: v.lisans_bitis || "", masa_limit: v.masa_limit > 0 ? String(v.masa_limit) : "", notlar: v.notlar || "" }); }} style={mini("232,184,109")}><Ik i={IconKey} s={16} />Lisans</button>
                 {v.aktif
-                  ? <button onClick={() => { setMsg(null); setModal({ tip: "askiya", v }); }} style={mini("224,150,60")}>⏸ Askıya al</button>
-                  : <button onClick={() => act({ action: "venue_toggle", id: v.id, aktif: 1 }, `▶ ${v.ad} yeniden açıldı.`)} style={mini("58,170,106")}>▶ Yeniden aç</button>}
-                <button onClick={() => { setMsg(null); setModal({ tip: "duzenle", v, ad: v.ad, yetkili_ad: v.yetkili_ad || "", yetkili_tel: v.yetkili_tel || "" }); }} style={mini("106,170,224")}>✎ Düzenle</button>
-                <button onClick={() => { setMsg(null); setModal({ tip: "sifre", v, sifre: "" }); }} style={mini("106,170,224")}>🔐 Şifre sıfırla</button>
-                <button onClick={() => { setMsg(null); setModal({ tip: "sil", v, onay: "" }); }} style={mini("224,96,96")}>🗑 Sil</button>
+                  ? <button onClick={() => { setMsg(null); setModal({ tip: "askiya", v }); }} style={mini("224,150,60")}><Ik i={IconPlayerPause} s={16} />Askıya al</button>
+                  : <button onClick={() => act({ action: "venue_toggle", id: v.id, aktif: 1 }, `▶ ${v.ad} yeniden açıldı.`)} style={mini("58,170,106")}><Ik i={IconPlayerPlay} s={16} />Yeniden aç</button>}
+                <button onClick={() => { setMsg(null); setModal({ tip: "duzenle", v, ad: v.ad, yetkili_ad: v.yetkili_ad || "", yetkili_tel: v.yetkili_tel || "" }); }} style={mini("106,170,224")}><Ik i={IconPencil} s={16} />Düzenle</button>
+                <button onClick={() => { setMsg(null); setModal({ tip: "sifre", v, sifre: "" }); }} style={mini("106,170,224")}><Ik i={IconLock} s={16} />Şifre sıfırla</button>
+                <button onClick={() => { setMsg(null); setModal({ tip: "sil", v, onay: "" }); }} style={mini("224,96,96")}><Ik i={IconTrash} s={16} />Sil</button>
               </div>
             </div>
           ))}
@@ -2629,61 +2647,61 @@ const AdminPanel = ({ staff, onLogout }) => {
       {M && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.88)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 18, backdropFilter: "blur(4px)" }} onClick={kapat}>
           <div style={{ width: "100%", maxWidth: 420, background: "var(--surf)", borderRadius: 20, padding: "22px 20px", animation: "fadeUp .3s ease-out", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 18, color: "var(--cream)", marginBottom: 2 }}>{{ lisans: "🔑 Lisans", askiya: "⏸ Askıya Al", duzenle: "✎ Düzenle", sifre: "🔐 Yetkili Şifresini Sıfırla", sil: "🗑 İşletmeyi Sil" }[M.tip]}</div>
-            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 14 }}>{M.v.ad}</div>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 18, color: "var(--cream)", marginBottom: 2 }}>{{ lisans: "Lisans", askiya: "Askıya Al", duzenle: "Düzenle", sifre: "Yetkili Şifresini Sıfırla", sil: "İşletmeyi Sil" }[M.tip]}</div>
+            <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 14 }}>{M.v.ad}</div>
 
             {M.tip === "lisans" && <>
-              <div style={{ fontSize: 13, color: "var(--cream)", marginBottom: 8 }}>Geçerli: <strong style={{ color: "var(--gsoft)" }}>{lisansYazi(M.v)}</strong></div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Uzat (bugünden ya da mevcut bitişten itibaren)</div>
+              <div style={{ fontSize: 14, color: "var(--cream)", marginBottom: 8 }}>Geçerli: <strong style={{ color: "var(--gsoft)" }}>{lisansYazi(M.v)}</strong></div>
+              <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 6 }}>Uzat (bugünden ya da mevcut bitişten itibaren)</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
                 {[["+14 gün", { gun: 14 }], ["+1 ay", { ay: 1 }], ["+3 ay", { ay: 3 }], ["+6 ay", { ay: 6 }], ["+1 yıl", { ay: 12 }]].map(([l, d]) => (
                   <button key={l} onClick={() => setModal({ ...M, lisans_bitis: tarihEkle(M.v.lisans_bitis, d) })} style={mini("232,184,109")}>{l}</button>
                 ))}
                 <button onClick={() => setModal({ ...M, lisans_bitis: "" })} style={mini("58,170,106")}>Süresiz</button>
               </div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Lisans bitiş tarihi (boş = süresiz; o gün dahil geçerli)</div>
+              <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 4 }}>Lisans bitiş tarihi (boş = süresiz; o gün dahil geçerli)</div>
               <input type="date" value={M.lisans_bitis} onChange={e => setModal({ ...M, lisans_bitis: e.target.value })} style={{ ...inp, colorScheme: "dark" }} />
-              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Masa limiti (boş = sınırsız)</div>
+              <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 4 }}>Masa limiti (boş = sınırsız)</div>
               <input type="number" min="0" value={M.masa_limit} onChange={e => setModal({ ...M, masa_limit: e.target.value })} placeholder="Sınırsız" style={inp} />
-              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Not (yalnızca siz görürsünüz)</div>
+              <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 4 }}>Not (yalnızca siz görürsünüz)</div>
               <textarea value={M.notlar} onChange={e => setModal({ ...M, notlar: e.target.value })} rows={2} maxLength={480} placeholder="Ör. ödeme durumu, paket, iletişim" style={{ ...inp, resize: "vertical", fontFamily: "inherit" }} />
-              <div style={{ fontSize: 13, color: "var(--gsoft)", margin: "2px 0 12px" }}>Yeni lisans: {M.lisans_bitis ? trTarih(M.lisans_bitis) + " tarihine kadar" : "Süresiz"}</div>
+              <div style={{ fontSize: 14, color: "var(--gsoft)", margin: "2px 0 12px" }}>Yeni lisans: {M.lisans_bitis ? trTarih(M.lisans_bitis) + " tarihine kadar" : "Süresiz"}</div>
             </>}
 
-            {M.tip === "askiya" && <div style={{ fontSize: 14, color: "var(--cream)", lineHeight: 1.6, marginBottom: 16 }}>
+            {M.tip === "askiya" && <div style={{ fontSize: 15, color: "var(--cream)", lineHeight: 1.6, marginBottom: 16 }}>
               Askıya alınınca personel giriş yapamaz, açık oturumlar kapanır ve müşteriler QR okutunca “Bu işletme şu anda hizmet vermiyor” mesajını görür. <strong style={{ color: "var(--gsoft)" }}>Hiçbir veri silinmez</strong>; istediğiniz zaman yeniden açabilirsiniz.
             </div>}
 
             {M.tip === "duzenle" && <>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>İşletme adı</div>
+              <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 4 }}>İşletme adı</div>
               <input value={M.ad} onChange={e => setModal({ ...M, ad: e.target.value })} style={inp} />
-              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Yetkili adı soyadı</div>
+              <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 4 }}>Yetkili adı soyadı</div>
               <input value={M.yetkili_ad} onChange={e => setModal({ ...M, yetkili_ad: e.target.value })} style={inp} />
-              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Yetkili telefonu (giriş için kullanılır)</div>
+              <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 4 }}>Yetkili telefonu (giriş için kullanılır)</div>
               <input type="tel" value={M.yetkili_tel} onChange={e => setModal({ ...M, yetkili_tel: e.target.value })} style={inp} />
             </>}
 
             {M.tip === "sifre" && <>
-              <div style={{ fontSize: 13.5, color: "var(--cream)", lineHeight: 1.6, marginBottom: 10 }}>{M.v.yetkili_ad || "Yetkili"} ({M.v.yetkili_tel || "—"}) için geçici şifre belirleyin. Açık oturumu kapanır; ilk girişte kendi şifresini belirler.</div>
+              <div style={{ fontSize: 14.5, color: "var(--cream)", lineHeight: 1.6, marginBottom: 10 }}>{M.v.yetkili_ad || "Yetkili"} ({M.v.yetkili_tel || "—"}) için geçici şifre belirleyin. Açık oturumu kapanır; ilk girişte kendi şifresini belirler.</div>
               <input value={M.sifre} onChange={e => setModal({ ...M, sifre: e.target.value })} placeholder="Geçici şifre (en az 6 karakter)" style={inp} autoFocus />
             </>}
 
             {M.tip === "sil" && <>
-              <div style={{ fontSize: 13.5, color: "#e06060", lineHeight: 1.6, marginBottom: 10 }}>
+              <div style={{ fontSize: 14.5, color: "var(--c-red)", lineHeight: 1.6, marginBottom: 10 }}>
                 Bu işlem <strong>geri alınamaz</strong>. İşletmenin personeli, masaları ve QR kodları, menüsü, görselleri ve tüm sipariş geçmişi kalıcı olarak silinir. Veriyi korumak istiyorsanız silmek yerine askıya alın.
               </div>
-              <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 5 }}>Onaylamak için işletme adını yazın: <strong style={{ color: "var(--cream)" }}>{M.v.ad}</strong></div>
+              <div style={{ fontSize: 13.5, color: "var(--muted)", marginBottom: 5 }}>Onaylamak için işletme adını yazın: <strong style={{ color: "var(--cream)" }}>{M.v.ad}</strong></div>
               <input value={M.onay} onChange={e => setModal({ ...M, onay: e.target.value })} placeholder={M.v.ad} style={inp} autoFocus />
             </>}
 
-            {msg && !msg.ok && <div style={{ fontSize: 13, color: "#e06060", marginBottom: 10 }}>{msg.text}</div>}
+            {msg && !msg.ok && <div style={{ fontSize: 14, color: "var(--c-red)", marginBottom: 10 }}>{msg.text}</div>}
             <div style={{ display: "flex", gap: 9 }}>
-              <button onClick={kapat} disabled={busy} style={{ flex: 1, padding: "12px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 10, color: "var(--muted)", cursor: "pointer", fontSize: 14 }}>Vazgeç</button>
+              <button onClick={kapat} disabled={busy} style={{ flex: 1, padding: "12px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 10, color: "var(--muted)", cursor: "pointer", fontSize: 15 }}>Vazgeç</button>
               {M.tip === "lisans" && <button disabled={busy} onClick={async () => { if (await act({ action: "venue_license", id: M.v.id, lisans_bitis: M.lisans_bitis, masa_limit: parseInt(M.masa_limit) || 0, notlar: M.notlar.trim() }, `✅ ${M.v.ad}: lisans ${M.lisans_bitis ? trTarih(M.lisans_bitis) + " tarihine kadar" : "süresiz"}.`)) setModal(null); }} style={{ ...gold(!busy), flex: 2 }}>Lisansı Kaydet</button>}
               {M.tip === "askiya" && <button disabled={busy} onClick={async () => { if (await act({ action: "venue_toggle", id: M.v.id, aktif: 0 }, `⏸ ${M.v.ad} askıya alındı.`)) setModal(null); }} style={{ ...gold(!busy), flex: 2 }}>Askıya Al</button>}
               {M.tip === "duzenle" && <button disabled={busy || M.ad.trim().length < 2} onClick={async () => { if (await act({ action: "venue_edit", id: M.v.id, ad: M.ad.trim(), yetkili_ad: M.yetkili_ad.trim(), yetkili_tel: M.yetkili_tel }, "✅ Bilgiler güncellendi.")) setModal(null); }} style={{ ...gold(!busy && M.ad.trim().length >= 2), flex: 2 }}>Kaydet</button>}
               {M.tip === "sifre" && <button disabled={busy || M.sifre.trim().length < 6} onClick={async () => { if (await act({ action: "venue_owner_pass", id: M.v.id, sifre: M.sifre.trim() }, `✅ ${M.v.ad} yetkilisi için geçici şifre: ${M.sifre.trim()} (Telefon: ${M.v.yetkili_tel || "—"})`)) setModal(null); }} style={{ ...gold(!busy && M.sifre.trim().length >= 6), flex: 2 }}>Şifreyi Sıfırla</button>}
-              {M.tip === "sil" && <button disabled={busy || M.onay.trim() !== M.v.ad} onClick={async () => { if (await act({ action: "venue_del", id: M.v.id, onay: M.onay.trim() }, `🗑 ${M.v.ad} kalıcı olarak silindi.`)) setModal(null); }} style={{ flex: 2, padding: "12px", background: M.onay.trim() === M.v.ad && !busy ? "rgba(192,64,64,.85)" : "var(--surf2)", border: "none", borderRadius: 10, color: M.onay.trim() === M.v.ad && !busy ? "#fff" : "var(--muted)", cursor: M.onay.trim() === M.v.ad ? "pointer" : "not-allowed", fontFamily: "var(--fh)", fontSize: 14, fontWeight: 600 }}>Kalıcı Olarak Sil</button>}
+              {M.tip === "sil" && <button disabled={busy || M.onay.trim() !== M.v.ad} onClick={async () => { if (await act({ action: "venue_del", id: M.v.id, onay: M.onay.trim() }, `🗑 ${M.v.ad} kalıcı olarak silindi.`)) setModal(null); }} style={{ flex: 2, padding: "12px", background: M.onay.trim() === M.v.ad && !busy ? "rgba(192,64,64,.85)" : "var(--surf2)", border: "none", borderRadius: 10, color: M.onay.trim() === M.v.ad && !busy ? "#fff" : "var(--muted)", cursor: M.onay.trim() === M.v.ad ? "pointer" : "not-allowed", fontFamily: "var(--fh)", fontSize: 15, fontWeight: 600 }}>Kalıcı Olarak Sil</button>}
             </div>
           </div>
         </div>
@@ -2870,7 +2888,7 @@ const StaffPanel = ({ staff, onLogout }) => {
   const topItems   = Object.entries(urunSayim).sort((a, b) => b[1] - a[1]).slice(0, 3);
 
   const AB = (label, onClick, col) => (
-    <button onClick={onClick} style={{ background: `rgba(${col},.15)`, border: `1px solid rgba(${col},.4)`, borderRadius: 9, padding: "6px 13px", cursor: "pointer", fontSize: 12.5, color: `rgb(${col})`, whiteSpace: "nowrap" }}>{label}</button>
+    <button onClick={onClick} style={{ background: `rgba(${col},.15)`, border: `1px solid rgba(${col},.4)`, borderRadius: 9, padding: "6px 13px", cursor: "pointer", fontSize: 13.5, color: `rgb(${koyu(col)})`, whiteSpace: "nowrap" }}>{label}</button>
   );
   const card = (ex = {}) => ({ padding: "13px 15px", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 14, marginBottom: 11, ...ex });
 
@@ -2892,19 +2910,19 @@ const StaffPanel = ({ staff, onLogout }) => {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
           <div style={{ fontFamily: "var(--fh)", fontSize: 21, color: "var(--gsoft)" }}>Masa {o.masa_no}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <span style={{ fontSize: 11.5, color: gec ? "#e06060" : "var(--muted)", fontWeight: gec ? 700 : 400 }}>🕐 {o.created_at?.slice(11, 16)} · {fmtSure(o.bekleme_sn || 0)}</span>
+            <span style={{ fontSize: 13, color: gec ? "var(--c-red)" : "var(--muted)", fontWeight: gec ? 700 : 400 }}>🕐 {o.created_at?.slice(11, 16)} · {fmtSure(o.bekleme_sn || 0)}</span>
             <OrderBadge status={o.status} />
           </div>
         </div>
         {(o.urunler || []).map((u, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 14.5, color: "var(--cream)", padding: "2px 0" }}>
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 15.5, color: "var(--cream)", padding: "2px 0" }}>
             <span><strong style={{ color: "var(--gsoft)" }}>{u.adet}×</strong> {u.ad}</span>
-            <span style={{ color: "var(--muted)", fontSize: 13 }}>{u.adet * u.fiyat}₺</span>
+            <span style={{ color: "var(--muted)", fontSize: 14 }}>{u.adet * u.fiyat}₺</span>
           </div>
         ))}
-        {o.notlar && o.notlar.replace("[Garson]", "").trim() && <div style={{ fontSize: 12.5, color: "#6aaae0", marginTop: 5, fontStyle: "italic" }}>📝 {o.notlar.replace("[Garson]", "").trim()}</div>}
+        {o.notlar && o.notlar.replace("[Garson]", "").trim() && <div style={{ fontSize: 13.5, color: "var(--c-blue)", marginTop: 5, fontStyle: "italic" }}>📝 {o.notlar.replace("[Garson]", "").trim()}</div>}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--fh)", fontSize: 14, color: "var(--gsoft)" }}>{o.toplam}₺</span>
+          <span style={{ fontFamily: "var(--fh)", fontSize: 15, color: "var(--gsoft)" }}>{o.toplam}₺</span>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap", justifyContent: "flex-end" }}>{orderBtns(o)}</div>
         </div>
       </div>
@@ -2912,15 +2930,16 @@ const StaffPanel = ({ staff, onLogout }) => {
   };
   const kuyruk = (baslik, list, renk) => list.length === 0 ? null : (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ fontFamily: "var(--fh)", fontSize: 12, color: renk, marginBottom: 8, letterSpacing: 1 }}>{baslik} ({list.length})</div>
+      <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: renk, marginBottom: 8, letterSpacing: 1 }}>{baslik} ({list.length})</div>
       <div className="sg-masa-grid">{list.map(orderCard)}</div>
     </div>
   );
 
-  const TabBtn = ({ id, label, badge }) => (
-    <button onClick={() => setTab(id)} style={{ flex: 1, padding: "10px 4px", background: "none", border: "none", cursor: "pointer", fontSize: 11.5, color: tab === id ? "var(--gsoft)" : "var(--muted)", borderBottom: tab === id ? "2px solid var(--gold)" : "2px solid transparent", position: "relative", whiteSpace: "nowrap" }}>
+  const TabBtn = ({ id, icon, label, badge }) => (
+    <button onClick={() => setTab(id)} style={{ flex: 1, padding: "9px 4px 8px", background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: tab === id ? 600 : 500, color: tab === id ? "var(--gsoft)" : "var(--muted)", borderBottom: tab === id ? "3px solid var(--gold)" : "3px solid transparent", position: "relative", whiteSpace: "nowrap", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+      <Ik i={icon} s={22} />
       {label}
-      {badge > 0 && <span style={{ position: "absolute", top: 5, right: "8%", minWidth: 16, height: 16, borderRadius: 8, background: "var(--red)", color: "#fff", fontSize: 9, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700, padding: "0 3px" }}>{badge}</span>}
+      {badge > 0 && <span style={{ position: "absolute", top: 5, right: "8%", minWidth: 16, height: 16, borderRadius: 8, background: "var(--red)", color: "#fff", fontSize: 12, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700, padding: "0 3px" }}>{badge}</span>}
     </button>
   );
 
@@ -2932,7 +2951,7 @@ const StaffPanel = ({ staff, onLogout }) => {
         onClick={() => setTab(id)}
         className={"sg-sidebar-btn" + (isActive ? " active" : "")}
       >
-        <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>{icon}</span>
+        <Ik i={icon} s={22} />
         <span>{label}</span>
         {badge > 0 && <span className="sg-sidebar-badge">{badge}</span>}
       </button>
@@ -2946,7 +2965,7 @@ const StaffPanel = ({ staff, onLogout }) => {
         <div className="sg-sidebar-logo">
           {logoUrl
             ? <img src={logoUrl} alt="" />
-            : <span>{isAdmin ? "🔴" : isOwner ? "👔" : "👨‍🍳"}</span>}
+            : <Ik i={isAdmin ? IconShieldCheck : isOwner ? IconBuildingStore : IconUser} s={28} st={1.6} />}
         </div>
         <div className="sg-sidebar-venue">{titleText}</div>
         <div className="sg-sidebar-role">{subText}</div>
@@ -2962,14 +2981,14 @@ const StaffPanel = ({ staff, onLogout }) => {
           className="sg-sidebar-btn"
           title="Dar (telefon) görünüme geç"
         >
-          <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>⊡</span>
+          <Ik i={IconDeviceMobile} s={22} />
           <span>Dar görünüm</span>
         </button>
         <button
           onClick={onLogout}
           className="sg-sidebar-btn"
         >
-          <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>↩</span>
+          <Ik i={IconLogout} s={22} />
           <span>Çıkış</span>
         </button>
       </div>
@@ -2978,26 +2997,26 @@ const StaffPanel = ({ staff, onLogout }) => {
 
   // Masaüstü topbar — aktif sekmeye göre başlık değişir
   const topbarTitles = {
-    bekleyen: { title: "🛎 Siparişler", sub: qTeyit.length ? `${qTeyit.length} sipariş teyit bekliyor` : qHazir.length ? `${qHazir.length} sipariş teslim edilecek` : "İşlem bekleyen sipariş yok" },
-    masalar:  { title: "🪑 Masa Yönetimi",    sub: `${active.length} aktif · ${tables.length} toplam masa` },
-    bildirim: { title: "🔔 Bildirimler",       sub: unread ? `${unread} okunmamış` : "Tümü okundu" },
-    yonetim:  { title: "⚙️ Yönetim",           sub: { ozet: "Günlük özet ve mekan bilgisi", personel: "Personel hesapları ve masa–garson ataması", menu: "Menü ve kategori yönetimi", qr: "Masa QR kodları", marka: "Tema ve marka ayarları" }[yTab] || "" },
-    venues:   { title: "🏢 Mekanlar",          sub: `${venues.length} kayıtlı mekan` },
+    bekleyen: { ik: IconReceipt,       title: "Siparişler", sub: qTeyit.length ? `${qTeyit.length} sipariş teyit bekliyor` : qHazir.length ? `${qHazir.length} sipariş teslim edilecek` : "İşlem bekleyen sipariş yok" },
+    masalar:  { ik: IconArmchair,      title: "Masa Yönetimi",    sub: `${active.length} aktif · ${tables.length} toplam masa` },
+    bildirim: { ik: IconBell,          title: "Bildirimler",       sub: unread ? `${unread} okunmamış` : "Tümü okundu" },
+    yonetim:  { ik: IconSettings,      title: "Yönetim",           sub: { ozet: "Günlük özet ve mekan bilgisi", personel: "Personel hesapları ve masa–garson ataması", menu: "Menü ve kategori yönetimi", qr: "Masa QR kodları", marka: "Tema ve marka ayarları" }[yTab] || "" },
+    venues:   { ik: IconBuildingStore, title: "Mekanlar",          sub: `${venues.length} kayıtlı mekan` },
   };
   const topbarNow = topbarTitles[tab] || { title: "", sub: "" };
 
   const renderTopbar = () => (
     <div className="sg-topbar">
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="sg-topbar-title">{topbarNow.title}</div>
+        <div className="sg-topbar-title">{topbarNow.ik && <Ik i={topbarNow.ik} s={28} st={1.6} style={{ color: "var(--gsoft)" }} />}{topbarNow.title}</div>
         <div className="sg-topbar-sub">{topbarNow.sub}</div>
       </div>
       {newTotal > 0 && !isAdmin && (
-        <div style={{ background: "var(--red)", color: "#fff", borderRadius: 20, padding: "4px 14px", fontSize: 13, fontWeight: 600, animation: "blink 1.4s ease-in-out infinite" }}>
+        <div style={{ background: "var(--red)", color: "#fff", borderRadius: 20, padding: "4px 14px", fontSize: 14, fontWeight: 600, animation: "blink 1.4s ease-in-out infinite" }}>
           {newTotal} yeni
         </div>
       )}
-      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+      <div style={{ fontSize: 13, color: "var(--muted)" }}>
         {new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" })}
       </div>
     </div>
@@ -3007,10 +3026,10 @@ const StaffPanel = ({ staff, onLogout }) => {
   /* ── GARSON / İŞLETMECİ PANELİ ── */
   // Sidebar menü öğeleri (owner için yönetim de var)
   const ownerSideItems = [
-    { id: "bekleyen", icon: "🛎", label: "Siparişler", badge: newOrdsN },
-    { id: "masalar",  icon: "🪑", label: "Masalar",  badge: 0 },
-    { id: "bildirim", icon: "🔔", label: "Bildirim", badge: unread },
-    ...(isOwner ? [{ id: "yonetim", icon: "⚙️", label: "Yönetim" }] : []),
+    { id: "bekleyen", icon: IconReceipt,  label: "Siparişler", badge: newOrdsN },
+    { id: "masalar",  icon: IconArmchair, label: "Masalar",  badge: 0 },
+    { id: "bildirim", icon: IconBell,     label: "Bildirim", badge: unread },
+    ...(isOwner ? [{ id: "yonetim", icon: IconSettings, label: "Yönetim" }] : []),
   ];
 
   return (
@@ -3044,15 +3063,15 @@ const StaffPanel = ({ staff, onLogout }) => {
         background: "var(--surf)", flexShrink: 0,
       }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: "var(--fh)", fontSize: 16, color: "var(--cream)" }}>
-            {isOwner ? "👔" : "👨‍🍳"} {staff.ad}
+          <div style={{ fontFamily: "var(--fh)", fontSize: 18, color: "var(--cream)", display: "flex", alignItems: "center", gap: 7 }}>
+            <Ik i={isOwner ? IconBriefcase : IconUser} s={20} style={{ color: "var(--gsoft)" }} />{staff.ad}
           </div>
-          <div style={{ fontSize: 11, color: "var(--muted)" }}>
+          <div style={{ fontSize: 12.5, color: "var(--muted)" }}>
             {staff.venue_ad} · {isOwner ? "İşletmeci" : "Garson"}{isWaiter && tables.some(t => t.garson_id === me.id) ? ` · Masalarım: ${tables.filter(t => t.garson_id === me.id).map(t => t.masa_no).sort((a, b) => a - b).join(", ")}` : ""}
           </div>
         </div>
         {newTotal > 0 && (
-          <div style={{ background: "var(--red)", color: "#fff", borderRadius: 20, padding: "3px 12px", fontSize: 12, fontWeight: 600, animation: "blink 1.4s ease-in-out infinite" }}>
+          <div style={{ background: "var(--red)", color: "#fff", borderRadius: 20, padding: "3px 12px", fontSize: 13, fontWeight: 600, animation: "blink 1.4s ease-in-out infinite" }}>
             {newTotal}
           </div>
         )}
@@ -3063,13 +3082,14 @@ const StaffPanel = ({ staff, onLogout }) => {
             title={userCompact ? "Geniş görünüme geç" : "Dar (telefon) görünüme geç"}
             style={{
               background: "none", border: "1px solid var(--bord)", borderRadius: 9,
-              padding: "6px 11px", color: "var(--muted)", cursor: "pointer", fontSize: 13
+              padding: "7px 11px", color: "var(--muted)", cursor: "pointer", fontSize: 14,
+              display: "flex", alignItems: "center", gap: 5
             }}
           >
-            {userCompact ? "⛶ Geniş" : "⊡ Dar"}
+            <Ik i={userCompact ? IconDeviceDesktop : IconDeviceMobile} s={18} />{userCompact ? "Geniş" : "Dar"}
           </button>
         )}
-        <button onClick={onLogout} style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "6px 11px", color: "var(--muted)", cursor: "pointer", fontSize: 12 }}>Çıkış</button>
+        <button onClick={onLogout} title="Çıkış" style={{ background: "none", border: "1px solid var(--bord)", borderRadius: 9, padding: "7px 11px", color: "var(--muted)", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", gap: 5 }}><Ik i={IconLogout} s={18} />Çıkış</button>
       </div>
       )}
 
@@ -3078,13 +3098,13 @@ const StaffPanel = ({ staff, onLogout }) => {
       <div className="sg-legacy-tabs" style={{
         display: "flex",
         borderBottom: "1px solid var(--bord)",
-        background: "rgba(22,14,8,.95)",
+        background: "var(--surf)",
         flexShrink: 0,
       }}>
-        <TabBtn id="bekleyen"  label="🛎 Siparişler" badge={newOrdsN} />
-        <TabBtn id="masalar"   label="🪑 Masalar"   badge={0} />
-        <TabBtn id="bildirim"  label="🔔 Bildirim"  badge={unread} />
-        {isOwner && <TabBtn id="yonetim" label="⚙️ Yönetim" badge={0} />}
+        <TabBtn id="bekleyen"  icon={IconReceipt}  label="Siparişler" badge={newOrdsN} />
+        <TabBtn id="masalar"   icon={IconArmchair} label="Masalar"   badge={0} />
+        <TabBtn id="bildirim"  icon={IconBell}     label="Bildirim"  badge={unread} />
+        {isOwner && <TabBtn id="yonetim" icon={IconSettings} label="Yönetim" badge={0} />}
       </div>
       )}
 
@@ -3100,7 +3120,7 @@ const StaffPanel = ({ staff, onLogout }) => {
 
         {/* ── v5: Lisans bitişine 7 gün kala işletmeciye uyarı ── */}
         {!loading && isOwner && lisans && lisans.kalan_gun !== null && lisans.kalan_gun <= 7 && (
-          <div style={{ padding: "10px 14px", marginBottom: 14, borderRadius: 12, background: "rgba(201,145,58,.14)", border: "1px solid rgba(201,145,58,.55)", fontSize: 13.5, color: "var(--gsoft)" }}>
+          <div style={{ padding: "10px 14px", marginBottom: 14, borderRadius: 12, background: "rgba(201,145,58,.14)", border: "1px solid rgba(201,145,58,.55)", fontSize: 14.5, color: "var(--gsoft)" }}>
             🔑 Lisansınız {lisans.kalan_gun === 0 ? "bugün" : `${lisans.kalan_gun} gün sonra`} sona eriyor ({lisans.bitis?.split("-").reverse().join(".")}). Süre dolunca sistem kullanıma kapanır; yenilemek için hizmet sağlayıcınızla iletişime geçin.
           </div>
         )}
@@ -3108,18 +3128,18 @@ const StaffPanel = ({ staff, onLogout }) => {
         {/* ── v5: Geciken teyit uyarısı — her sekmede görünür ── */}
         {!loading && geciken.length > 0 && (
           <div onClick={() => setTab("bekleyen")} style={{ padding: "11px 14px", marginBottom: 14, borderRadius: 12, cursor: "pointer", background: "rgba(192,64,64,.16)", border: "1px solid rgba(192,64,64,.6)", animation: "blink 1.6s ease-in-out infinite" }}>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 14, color: "#e06060" }}>⚠️ {geciken.length} sipariş {Math.floor(GECIKME_SN / 60)} dakikadan uzun süredir garson teyidi bekliyor</div>
-            <div style={{ fontSize: 12.5, color: "var(--cream)", marginTop: 3 }}>{geciken.map(o => `Masa ${o.masa_no} (${fmtSure(o.bekleme_sn || 0)})`).join(" · ")}</div>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 15, color: "var(--c-red)" }}>⚠️ {geciken.length} sipariş {Math.floor(GECIKME_SN / 60)} dakikadan uzun süredir garson teyidi bekliyor</div>
+            <div style={{ fontSize: 13.5, color: "var(--cream)", marginTop: 3 }}>{geciken.map(o => `Masa ${o.masa_no} (${fmtSure(o.bekleme_sn || 0)})`).join(" · ")}</div>
           </div>
         )}
 
         {/* ── SİPARİŞLER (teyit → mutfak → teslim) ── */}
         {!loading && tab === "bekleyen" && (
           qTeyit.length + qHazir.length + qMutfak.length === 0
-            ? <div style={{ textAlign: "center", color: "var(--muted)", marginTop: 60 }}><div style={{ fontSize: 36 }}>✅</div><div style={{ marginTop: 12, fontSize: 14, fontStyle: "italic" }}>İşlem bekleyen sipariş yok</div></div>
+            ? <div style={{ textAlign: "center", color: "var(--muted)", marginTop: 60 }}><div style={{ fontSize: 36 }}>✅</div><div style={{ marginTop: 12, fontSize: 15, fontStyle: "italic" }}>İşlem bekleyen sipariş yok</div></div>
             : <>
-              {kuyruk("⏳ TEYİT BEKLEYEN — masaya gidip onaylayın", qTeyit, "#e06060")}
-              {kuyruk("✅ HAZIR — masaya teslim edilecek", qHazir, "#3aaa6a")}
+              {kuyruk("⏳ TEYİT BEKLEYEN — masaya gidip onaylayın", qTeyit, "var(--c-red)")}
+              {kuyruk("✅ HAZIR — masaya teslim edilecek", qHazir, "var(--c-green)")}
               {kuyruk("👨‍🍳 MUTFAKTA", qMutfak, "var(--gsoft)")}
             </>
         )}
@@ -3133,7 +3153,7 @@ const StaffPanel = ({ staff, onLogout }) => {
                 <input type="text" value={newMasa} onChange={e=>setNewMasa(e.target.value)}
                   placeholder="Masa ekle: 5 veya 1-50"
                   onKeyDown={e=>{ if(e.key==="Enter") e.currentTarget.nextSibling.click(); }}
-                  style={{flex:1,background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:10,padding:"9px 13px",color:"var(--cream)",fontSize:13,outline:"none"}}
+                  style={{flex:1,background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:10,padding:"9px 13px",color:"var(--cream)",fontSize:14,outline:"none"}}
                 />
                 <button onClick={async()=>{
                   if(!newMasa.trim()) return;
@@ -3147,7 +3167,7 @@ const StaffPanel = ({ staff, onLogout }) => {
                   const eklenecek = nums.filter(n=>!mevcutlar.has(n));
                   for(const n of eklenecek) await post("panel.php",{action:"table_add",masa_no:n});
                   setNewMasa(""); fetchAll();
-                }} style={{padding:"9px 16px",background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:"#0b0704",cursor:"pointer",fontFamily:"var(--fh)",fontSize:13,fontWeight:600,whiteSpace:"nowrap"}}>+ Ekle</button>
+                }} style={{padding:"9px 16px",background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)",border:"none",borderRadius:10,color:"#0b0704",cursor:"pointer",fontFamily:"var(--fh)",fontSize:14,fontWeight:600,whiteSpace:"nowrap"}}>+ Ekle</button>
               </div>
             )}
 
@@ -3155,7 +3175,7 @@ const StaffPanel = ({ staff, onLogout }) => {
             {tables.length === 0 && active.length === 0 && (
               <div style={{textAlign:"center",color:"var(--muted)",marginTop:60}}>
                 <div style={{fontSize:36}}>🪑</div>
-                <div style={{marginTop:12,fontSize:14,fontStyle:"italic"}}>Henüz masa eklenmedi</div>
+                <div style={{marginTop:12,fontSize:15,fontStyle:"italic"}}>Henüz masa eklenmedi</div>
               </div>
             )}
 
@@ -3187,25 +3207,25 @@ const StaffPanel = ({ staff, onLogout }) => {
                     <div style={{fontFamily:"var(--fh)",fontSize:17,color:"var(--cream)",marginBottom:3}}>{t.masa_no}</div>
                     {dolu ? (
                       <>
-                        <div style={{fontSize:10,color:"#3aaa6a",marginBottom:3}}>● Dolu</div>
-                        {isOwner && total>0 && <div style={{fontFamily:"var(--fh)",fontSize:12,color:"var(--gsoft)"}}>{total}₺</div>}
-                        {canli.length>0 && <div style={{fontSize:10,color:"var(--muted)",marginTop:2}}>{canli.length} sipariş</div>}
-                        {hasNew && <div style={{fontSize:10,color:"#e06060",marginTop:2}}>⏳ teyit bekliyor</div>}
-                        {!hasNew && hasRdy && <div style={{fontSize:10,color:"#3aaa6a",marginTop:2}}>✅ hazır</div>}
-                        {!!ses.hesap_istendi && <div style={{fontSize:10,color:"var(--gsoft)",marginTop:2}}>💳 hesap istedi</div>}
+                        <div style={{fontSize:12,color:"var(--c-green)",marginBottom:3}}>● Dolu</div>
+                        {isOwner && total>0 && <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--gsoft)"}}>{total}₺</div>}
+                        {canli.length>0 && <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>{canli.length} sipariş</div>}
+                        {hasNew && <div style={{fontSize:12,color:"var(--c-red)",marginTop:2}}>⏳ teyit bekliyor</div>}
+                        {!hasNew && hasRdy && <div style={{fontSize:12,color:"var(--c-green)",marginTop:2}}>✅ hazır</div>}
+                        {!!ses.hesap_istendi && <div style={{fontSize:12,color:"var(--gsoft)",marginTop:2}}>💳 hesap istedi</div>}
                       </>
                     ) : (
-                      <div style={{fontSize:10,color:"var(--muted)"}}>Boş</div>
+                      <div style={{fontSize:12,color:"var(--muted)"}}>Boş</div>
                     )}
                     {/* Masanın garsonu */}
-                    {isOwner && t.garson_ad && <div style={{fontSize:9.5,color:"var(--muted)",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>🛎 {t.garson_ad.split(" ")[0]}</div>}
-                    {benimMasa && <div style={{fontSize:9.5,color:"var(--gsoft)",marginTop:3}}>★ benim</div>}
+                    {isOwner && t.garson_ad && <div style={{fontSize:12,color:"var(--muted)",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>🛎 {t.garson_ad.split(" ")[0]}</div>}
+                    {benimMasa && <div style={{fontSize:12,color:"var(--gsoft)",marginTop:3}}>★ benim</div>}
                     {/* Küçük sil butonu — sağ üst köşe */}
                     {isOwner && (
                       <button
                         onClick={e=>{e.stopPropagation(); if(window.confirm(`Masa ${t.masa_no} silinsin mi?`)) post("panel.php",{action:"table_del",id:t.id}).then(fetchAll);}}
                         title="Masayı Sil"
-                        style={{position:"absolute",top:4,right:4,width:16,height:16,borderRadius:4,background:"rgba(192,64,64,.2)",border:"none",color:"rgba(224,96,96,.6)",cursor:"pointer",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}
+                        style={{position:"absolute",top:4,right:4,width:16,height:16,borderRadius:4,background:"rgba(192,64,64,.2)",border:"none",color:"rgba(224,96,96,.6)",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}
                       >✕</button>
                     )}
                   </div>
@@ -3223,14 +3243,14 @@ const StaffPanel = ({ staff, onLogout }) => {
               const orphans = orders.filter(o=>!shown.has(o.id)&&!["teslim","iptal"].includes(o.status)&&benim(o));
               if(!orphans.length) return null;
               return <>
-                <div style={{fontFamily:"var(--fh)",fontSize:11,color:"var(--muted)",marginBottom:8,letterSpacing:1}}>DİĞER SİPARİŞLER</div>
+                <div style={{fontFamily:"var(--fh)",fontSize:12.5,color:"var(--muted)",marginBottom:8,letterSpacing:1}}>DİĞER SİPARİŞLER</div>
                 {orphans.map(o=>(
                   <div key={o.id} style={{...card({border:`1px solid rgba(${osOf(o.status).rgb},.45)`})}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                      <span style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--cream)"}}>Masa {o.masa_no}</span>
+                      <span style={{fontFamily:"var(--fh)",fontSize:14,color:"var(--cream)"}}>Masa {o.masa_no}</span>
                       <OrderBadge status={o.status} />
                     </div>
-                    {(o.urunler||[]).map((u,i)=><div key={i} style={{fontSize:12,color:"var(--cream)"}}>{u.adet}× {u.ad}</div>)}
+                    {(o.urunler||[]).map((u,i)=><div key={i} style={{fontSize:13,color:"var(--cream)"}}>{u.adet}× {u.ad}</div>)}
                     <div style={{display:"flex",justifyContent:"flex-end",gap:6,marginTop:7}}>
                       {orderBtns(o)}
                     </div>
@@ -3248,14 +3268,14 @@ const StaffPanel = ({ staff, onLogout }) => {
           return (
             <>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                <div style={{ fontSize:13, color:"var(--muted)" }}>
+                <div style={{ fontSize:14, color:"var(--muted)" }}>
                   {unread.length > 0 ? `${unread.length} yeni bildirim` : "Tüm bildirimler okundu"}
                 </div>
                 {unread.length > 0 && (
                   <button onClick={async()=>{
                     await Promise.all(unread.map(n=>post("panel.php",{action:"ack",id:n.id})));
                     fetchAll();
-                  }} style={{fontSize:12,color:"var(--muted)",background:"none",border:"1px solid var(--bord)",borderRadius:8,padding:"5px 12px",cursor:"pointer"}}>
+                  }} style={{fontSize:13,color:"var(--muted)",background:"none",border:"1px solid var(--bord)",borderRadius:8,padding:"5px 12px",cursor:"pointer"}}>
                     ✓ Tümünü Temizle
                   </button>
                 )}
@@ -3264,7 +3284,7 @@ const StaffPanel = ({ staff, onLogout }) => {
               {unread.length === 0 && (
                 <div style={{ textAlign:"center", color:"var(--muted)", marginTop:60 }}>
                   <div style={{ fontSize:36 }}>🔕</div>
-                  <div style={{ marginTop:12, fontSize:14, fontStyle:"italic" }}>Yeni bildirim yok</div>
+                  <div style={{ marginTop:12, fontSize:15, fontStyle:"italic" }}>Yeni bildirim yok</div>
                 </div>
               )}
 
@@ -3284,13 +3304,13 @@ const StaffPanel = ({ staff, onLogout }) => {
                   }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10 }}>
                       <div style={{ flex:1 }}>
-                        <div style={{ fontFamily:"var(--fh)", fontSize:15, color: isHesap ? "var(--gsoft)" : "#6aaae0", marginBottom:4 }}>
+                        <div style={{ fontFamily:"var(--fh)", fontSize:16, color: isHesap ? "var(--gsoft)" : "var(--c-blue)", marginBottom:4 }}>
                           {isBekliyor && `🪑 Masa ${n.masa_no} — Müşteri bekleniyor`}
                           {isGarson   && `🔔 Masa ${n.masa_no} — Garson çağırıyor`}
                           {isHesap    && `💳 Masa ${n.masa_no} — Hesap istiyor`}
                         </div>
                         {isHesap && (
-                          <div style={{ fontSize:13, color:"var(--cream)", marginBottom:4 }}>
+                          <div style={{ fontSize:14, color:"var(--cream)", marginBottom:4 }}>
                             {ODEME_AD[n.payment] || n.payment || ""}
                             {n.total > 0 && <strong style={{color:"var(--gsoft)",marginLeft:8}}>{n.total}₺</strong>}
                           </div>
@@ -3298,18 +3318,18 @@ const StaffPanel = ({ staff, onLogout }) => {
                         {isBekliyor && ses && (
                           <div style={{display:"flex",gap:7,marginTop:6}}>
                             <button onClick={()=>{ post("session.php",{action:"update",id:ses.id,durum:"aktif",venue_id:vid}); ack(n.id); fetchAll(); }}
-                              style={{padding:"5px 13px",background:"rgba(58,138,92,.2)",border:"1px solid rgba(58,138,92,.4)",borderRadius:8,color:"#3aaa6a",cursor:"pointer",fontSize:12,fontFamily:"var(--fh)"}}>
+                              style={{padding:"5px 13px",background:"rgba(58,138,92,.2)",border:"1px solid rgba(58,138,92,.4)",borderRadius:8,color:"var(--c-green)",cursor:"pointer",fontSize:13,fontFamily:"var(--fh)"}}>
                               ✓ Onayla
                             </button>
                             <button onClick={()=>{ post("session.php",{action:"close",id:ses.id,venue_id:vid}); ack(n.id); fetchAll(); }}
-                              style={{padding:"5px 13px",background:"rgba(192,64,64,.15)",border:"1px solid rgba(192,64,64,.3)",borderRadius:8,color:"#e06060",cursor:"pointer",fontSize:12}}>
+                              style={{padding:"5px 13px",background:"rgba(192,64,64,.15)",border:"1px solid rgba(192,64,64,.3)",borderRadius:8,color:"var(--c-red)",cursor:"pointer",fontSize:13}}>
                               ✕ Reddet
                             </button>
                           </div>
                         )}
-                        <div style={{ fontSize:11, color:"var(--muted)", marginTop:4 }}>🕐 {n.created_at?.slice(11,16)}</div>
+                        <div style={{ fontSize:12.5, color:"var(--muted)", marginTop:4 }}>🕐 {n.created_at?.slice(11,16)}</div>
                       </div>
-                      <button onClick={()=>ack(n.id)} style={{background:"none",border:"1px solid var(--bord)",borderRadius:8,color:"var(--muted)",cursor:"pointer",padding:"4px 10px",fontSize:11,flexShrink:0,whiteSpace:"nowrap"}}>✓</button>
+                      <button onClick={()=>ack(n.id)} style={{background:"none",border:"1px solid var(--bord)",borderRadius:8,color:"var(--muted)",cursor:"pointer",padding:"4px 10px",fontSize:12.5,flexShrink:0,whiteSpace:"nowrap"}}>✓</button>
                     </div>
                   </div>
                 );
@@ -3323,27 +3343,27 @@ const StaffPanel = ({ staff, onLogout }) => {
         {!loading && tab === "yonetim" && isOwner && (
           <>
             {/* Alt sekmeler */}
-            <div style={{ display:"flex", gap:0, marginBottom:16, background:"var(--surf2)", borderRadius:12, padding:3 }}>
-              {[["ozet","📊 Özet"],["personel","👥 Personel"],["menu","📋 Menü"],["qr","🔲 QR"],["marka","🎨 Marka"]].map(([id,label]) => (
-                <button key={id} onClick={()=>setYTab(id)} style={{ flex:1, padding:"9px 6px", background:yTab===id?"var(--surf)":"transparent", border:"none", borderRadius:10, cursor:"pointer", fontSize:12.5, color:yTab===id?"var(--gsoft)":"var(--muted)", fontWeight:yTab===id?600:400, transition:"all .2s" }}>{label}</button>
+            <div style={{ display:"flex", gap:3, marginBottom:18, background:"rgba(107,86,64,.08)", border:"1px solid var(--bord)", borderRadius:13, padding:4 }}>
+              {[["ozet","Özet",IconChartBar],["personel","Personel",IconUsers],["menu","Menü",IconBook],["qr","QR",IconQrcode],["marka","Marka",IconPalette]].map(([id,label,ik]) => (
+                <button key={id} onClick={()=>setYTab(id)} style={{ flex:1, minWidth:0, padding:desktopActive?"10px 6px":"8px 2px", background:yTab===id?"var(--surf2)":"transparent", border:"none", borderRadius:10, cursor:"pointer", fontSize:desktopActive?15:13, color:yTab===id?"var(--gsoft)":"var(--muted)", fontWeight:yTab===id?600:500, transition:"all .2s", display:"flex", flexDirection:desktopActive?"row":"column", alignItems:"center", justifyContent:"center", gap:desktopActive?7:3, boxShadow:yTab===id?"0 1px 3px rgba(70,45,20,.12)":"none" }}><Ik i={ik} s={desktopActive?20:21} />{label}</button>
               ))}
             </div>
 
             {/* ── ÖZET ── */}
             {yTab === "ozet" && <>
               <div className="sg-grid-4" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:18 }}>
-                {[{label:"Toplam Ciro",value:`${ciro}₺`,color:"var(--gsoft)"},{label:"Sipariş",value:todayOrds.length,color:"#6aaae0"},{label:"Aktif Masa",value:active.length,color:"#3aaa6a"},{label:"Süren Sipariş",value:orders.filter(o=>!["teslim","iptal"].includes(o.status)).length,color:"#e06060"}].map((s,i)=>(
+                {[{label:"Toplam Ciro",value:`${ciro}₺`,color:"var(--gsoft)"},{label:"Sipariş",value:todayOrds.length,color:"var(--c-blue)"},{label:"Aktif Masa",value:active.length,color:"var(--c-green)"},{label:"Süren Sipariş",value:orders.filter(o=>!["teslim","iptal"].includes(o.status)).length,color:"var(--c-red)"}].map((s,i)=>(
                   <div key={i} style={{padding:"14px 16px",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12}}>
-                    <div style={{fontSize:11,color:"var(--muted)",marginBottom:4}}>{s.label}</div>
+                    <div style={{fontSize:12.5,color:"var(--muted)",marginBottom:4}}>{s.label}</div>
                     <div style={{fontFamily:"var(--fh)",fontSize:desktopActive?26:22,color:s.color}}>{s.value}</div>
                   </div>
                 ))}
               </div>
               {/* Bugünkü tahsilat (kasa onaylı ödemeler) */}
-              <div style={{padding:"12px 14px",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12,marginBottom:14,display:"flex",justifyContent:"space-between",gap:10,flexWrap:"wrap",fontSize:14,color:"var(--cream)"}}>
-                <span style={{fontSize:11,color:"var(--muted)",alignSelf:"center"}}>💰 BUGÜN TAHSİL EDİLEN</span>
-                <span>💵 Nakit <strong style={{color:"var(--gsoft)"}}>{tahsilat.nakit||0}₺</strong></span>
-                <span>💳 Kart <strong style={{color:"var(--gsoft)"}}>{tahsilat.kart||0}₺</strong></span>
+              <div style={{padding:"12px 14px",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12,marginBottom:14,display:"flex",justifyContent:"space-between",gap:10,flexWrap:"wrap",fontSize:15,color:"var(--cream)"}}>
+                <span style={{...ETIKET,alignSelf:"center"}}><Ik i={IconCashRegister} s={18} />BUGÜN TAHSİL EDİLEN</span>
+                <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Ik i={IconCash} s={19} style={{color:"var(--muted)"}} />Nakit <strong style={{color:"var(--gsoft)"}}>{tahsilat.nakit||0}₺</strong></span>
+                <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Ik i={IconCreditCard} s={19} style={{color:"var(--muted)"}} />Kart <strong style={{color:"var(--gsoft)"}}>{tahsilat.kart||0}₺</strong></span>
                 <span>Toplam <strong style={{color:"var(--gsoft)"}}>{(tahsilat.nakit||0)+(tahsilat.kart||0)}₺</strong></span>
               </div>
               {/* Masaüstünde: En çok satan + Mekan bilgi 2 sütun | Mobilde: alt alta */}
@@ -3351,10 +3371,10 @@ const StaffPanel = ({ staff, onLogout }) => {
                 <div>
                   {topItems.length > 0 && (
                     <div style={{padding:"12px 14px",background:"var(--surf2)",border:"1px solid var(--bord)",borderRadius:12,marginBottom:14}}>
-                      <div style={{fontSize:11,color:"var(--muted)",marginBottom:10}}>🏆 EN ÇOK SATAN</div>
+                      <div style={{...ETIKET,marginBottom:10}}><Ik i={IconTrophy} s={18} />EN ÇOK SATAN</div>
                       {topItems.map(([ad,adet],i)=>(
-                        <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:14,color:"var(--cream)",padding:"4px 0",borderBottom:i<topItems.length-1?"1px solid var(--bord)":"none"}}>
-                          <span>{i===0?"🥇":i===1?"🥈":"🥉"} {ad}</span>
+                        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:15,color:"var(--cream)",padding:"6px 0",borderBottom:i<topItems.length-1?"1px solid var(--bord)":"none"}}>
+                          <span style={{display:"inline-flex",alignItems:"center",gap:9}}><span style={{width:24,height:24,borderRadius:"50%",background:i===0?"var(--gold)":"var(--gdim)",color:i===0?"#fff":"var(--gsoft)",fontSize:13,fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{i+1}</span>{ad}</span>
                           <span style={{color:"var(--gsoft)"}}>{adet} adet</span>
                         </div>
                       ))}
@@ -3362,7 +3382,7 @@ const StaffPanel = ({ staff, onLogout }) => {
                   )}
                   {/* Şifre değiştir */}
                   <div style={{...card({border:"1px solid var(--gdim)"})}}>
-                    <div style={{fontFamily:"var(--fh)",fontSize:13,color:"var(--muted)",marginBottom:10}}>🔑 Şifre Değiştir</div>
+                    <div style={{fontFamily:"var(--fh)",fontSize:18,color:"var(--cream)",marginBottom:10,display:"flex",alignItems:"center",gap:8}}><Ik i={IconLock} s={20} style={{color:"var(--gsoft)"}} />Şifre Değiştir</div>
                     <ChangePassInline />
                   </div>
                 </div>
@@ -3403,7 +3423,7 @@ const StaffPanel = ({ staff, onLogout }) => {
         const mTotal = mSes ? (mSes.toplam ?? sumOrders(mOrds)) : 0;
         const mTeyitsiz = mOrds.some(o => o.status === "yeni");
         const payBtn = (tip, label) => (
-          <button onClick={async () => { if (await sPay(mSes, tip, mTotal)) setMasaPopup(null); }} style={{flex:1,padding:"11px",background:"rgba(201,145,58,.15)",border:"1px solid rgba(201,145,58,.4)",borderRadius:11,color:"var(--gsoft)",cursor:"pointer",fontFamily:"var(--fh)",fontSize:13}}>{label}</button>
+          <button onClick={async () => { if (await sPay(mSes, tip, mTotal)) setMasaPopup(null); }} style={{flex:1,padding:"11px",background:"rgba(201,145,58,.15)",border:"1px solid rgba(201,145,58,.4)",borderRadius:11,color:"var(--gsoft)",cursor:"pointer",fontFamily:"var(--fh)",fontSize:14}}>{label}</button>
         );
         return (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:300,backdropFilter:"blur(4px)"}} onClick={()=>setMasaPopup(null)}>
@@ -3412,16 +3432,16 @@ const StaffPanel = ({ staff, onLogout }) => {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexShrink:0}}>
               <div>
                 <div style={{fontFamily:"var(--fh)",fontSize:19,color:"var(--cream)"}}>Masa {mt.masa_no}</div>
-                <div style={{fontSize:12,color:"var(--muted)",marginTop:2}}>
+                <div style={{fontSize:13,color:"var(--muted)",marginTop:2}}>
                   {mSes ? `● Dolu · ⏱ ${mSes.sure_sn != null ? fmtSure(mSes.sure_sn) : elapsed(mSes.created_at)}` : "○ Boş"}
                   {mTotal > 0 && ` · ${mTotal}₺`}
                   {mt.garson_ad && ` · 🛎 ${mt.garson_ad}`}
                 </div>
-                {mSes && !!mSes.hesap_istendi && <div style={{fontSize:12,color:"var(--gsoft)",marginTop:3}}>💳 Hesap istedi{mSes.odeme_tip ? ` · ${ODEME_AD[mSes.odeme_tip] || mSes.odeme_tip}` : ""}</div>}
+                {mSes && !!mSes.hesap_istendi && <div style={{fontSize:13,color:"var(--gsoft)",marginTop:3}}>💳 Hesap istedi{mSes.odeme_tip ? ` · ${ODEME_AD[mSes.odeme_tip] || mSes.odeme_tip}` : ""}</div>}
               </div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 {/* QR butonu */}
-                <button onClick={()=>{setQrModal({masa_no:mt.masa_no,url:masaPopup.url});setMasaPopup(null);}} style={{padding:"7px 14px",background:"rgba(201,145,58,.15)",border:"1px solid rgba(201,145,58,.4)",borderRadius:9,color:"var(--gsoft)",cursor:"pointer",fontSize:13}}>🔲 QR</button>
+                <button onClick={()=>{setQrModal({masa_no:mt.masa_no,url:masaPopup.url});setMasaPopup(null);}} style={{padding:"7px 14px",background:"rgba(201,145,58,.15)",border:"1px solid rgba(201,145,58,.4)",borderRadius:9,color:"var(--gsoft)",cursor:"pointer",fontSize:14}}>🔲 QR</button>
                 <button onClick={()=>setMasaPopup(null)} style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:22}}>✕</button>
               </div>
             </div>
@@ -3435,16 +3455,16 @@ const StaffPanel = ({ staff, onLogout }) => {
               ) : mOrds.map(o=>(
                 <div key={o.id} style={{padding:"9px 11px",background:"var(--surf2)",borderRadius:10,marginBottom:8,border:`1px solid rgba(${osOf(o.status).rgb},.4)`,opacity:o.status==="iptal"?.55:1}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                    <span style={{fontSize:11,color:"var(--muted)"}}>🕐 {o.created_at?.slice(11,16)}</span>
+                    <span style={{fontSize:12.5,color:"var(--muted)"}}>🕐 {o.created_at?.slice(11,16)}</span>
                     <OrderBadge status={o.status} />
                   </div>
                   {(o.urunler||[]).map((u,i)=>(
-                    <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"var(--cream)",padding:"2px 0",textDecoration:o.status==="iptal"?"line-through":"none"}}>
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:14,color:"var(--cream)",padding:"2px 0",textDecoration:o.status==="iptal"?"line-through":"none"}}>
                       <span><strong style={{color:"var(--gsoft)"}}>{u.adet}×</strong> {u.ad}{o.notlar?.includes("[Garson]")?" 👨‍🍳":""}</span>
                       <span style={{color:"var(--muted)"}}>{u.adet*u.fiyat}₺</span>
                     </div>
                   ))}
-                  {o.notlar && o.notlar.replace("[Garson]","").trim() && <div style={{fontSize:12,color:"#6aaae0",marginTop:4,fontStyle:"italic"}}>📝 {o.notlar.replace("[Garson]","").trim()}</div>}
+                  {o.notlar && o.notlar.replace("[Garson]","").trim() && <div style={{fontSize:13,color:"var(--c-blue)",marginTop:4,fontStyle:"italic"}}>📝 {o.notlar.replace("[Garson]","").trim()}</div>}
                   <div style={{display:"flex",justifyContent:"flex-end",gap:6,marginTop:7,flexWrap:"wrap"}}>
                     {orderBtns(o)}
                   </div>
@@ -3456,9 +3476,9 @@ const StaffPanel = ({ staff, onLogout }) => {
             {mSes && (
               <div style={{marginTop:14,flexShrink:0}}>
                 <div style={{display:"flex",gap:8,marginBottom:8}}>
-                  <button onClick={()=>{setGarsonOrder(mSes);setGarsonCart([]);setMasaPopup(null);}} style={{flex:1,padding:"11px",background:"rgba(58,138,92,.15)",border:"1px solid rgba(58,138,92,.4)",borderRadius:11,color:"#3aaa6a",cursor:"pointer",fontFamily:"var(--fh)",fontSize:13}}>➕ Sipariş Ekle</button>
+                  <button onClick={()=>{setGarsonOrder(mSes);setGarsonCart([]);setMasaPopup(null);}} style={{flex:1,padding:"11px",background:"rgba(58,138,92,.15)",border:"1px solid rgba(58,138,92,.4)",borderRadius:11,color:"var(--c-green)",cursor:"pointer",fontFamily:"var(--fh)",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><Ik i={IconPlus} s={18} />Sipariş Ekle</button>
                   {mTotal === 0 && (
-                    <button onClick={()=>{ if(mOrds.length===0 || window.confirm(`Masa ${mt.masa_no} kapatılsın mı?${mTeyitsiz ? " Teyit bekleyen siparişler iptal edilir." : ""}`)) { sClose(mSes.id); setMasaPopup(null); } }} style={{flex:1,padding:"11px",background:"rgba(192,64,64,.12)",border:"1px solid rgba(192,64,64,.35)",borderRadius:11,color:"#e06060",cursor:"pointer",fontFamily:"var(--fh)",fontSize:13}}>✕ Masayı Kapat</button>
+                    <button onClick={()=>{ if(mOrds.length===0 || window.confirm(`Masa ${mt.masa_no} kapatılsın mı?${mTeyitsiz ? " Teyit bekleyen siparişler iptal edilir." : ""}`)) { sClose(mSes.id); setMasaPopup(null); } }} style={{flex:1,padding:"11px",background:"rgba(192,64,64,.12)",border:"1px solid rgba(192,64,64,.35)",borderRadius:11,color:"var(--c-red)",cursor:"pointer",fontFamily:"var(--fh)",fontSize:14}}>✕ Masayı Kapat</button>
                   )}
                 </div>
                 {/* Ödeme onayı: kasa yetkilisi verir. Kasa hesabı yoksa garson, her durumda işletmeci. */}
@@ -3469,7 +3489,7 @@ const StaffPanel = ({ staff, onLogout }) => {
                   </div>
                 )}
                 {mTotal > 0 && !canCashier && (
-                  <div style={{fontSize:12.5,color:"var(--muted)",textAlign:"center",marginBottom:8,fontStyle:"italic"}}>Ödemeyi kasa onaylar; onaylanınca masa kapanır.</div>
+                  <div style={{fontSize:13.5,color:"var(--muted)",textAlign:"center",marginBottom:8,fontStyle:"italic"}}>Ödemeyi kasa onaylar; onaylanınca masa kapanır.</div>
                 )}
                 {isOwner && mOrds.length > 0 && (
                   <button onClick={()=>{
@@ -3489,7 +3509,7 @@ const StaffPanel = ({ staff, onLogout }) => {
                       setMasaPopup(null);
                       fetchAll();
                     });
-                  }} style={{width:"100%",padding:"9px",background:"rgba(58,106,154,.12)",border:"1px solid rgba(58,106,154,.35)",borderRadius:11,color:"#6aaae0",cursor:"pointer",fontFamily:"var(--fh)",fontSize:13}}>
+                  }} style={{width:"100%",padding:"9px",background:"rgba(58,106,154,.12)",border:"1px solid rgba(58,106,154,.35)",borderRadius:11,color:"var(--c-blue)",cursor:"pointer",fontFamily:"var(--fh)",fontSize:14}}>
                     🔀 Masa Birleştir / Taşı
                   </button>
                 )}
@@ -3506,33 +3526,33 @@ const StaffPanel = ({ staff, onLogout }) => {
           <div style={{ width: "100%", maxWidth: 525, background: "var(--surf)", borderRadius: "22px 22px 0 0", padding: "18px 16px 34px", maxHeight: "85vh", display: "flex", flexDirection: "column", animation: "fadeUp .3s ease-out" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexShrink: 0 }}>
               <div>
-                <div style={{ fontFamily: "var(--fh)", fontSize: 17, color: "var(--cream)" }}>➕ Sipariş Ekle</div>
-                <div style={{ fontSize: 13, color: "var(--muted)" }}>Masa {garsonOrder.masa_no}</div>
+                <div style={{ fontFamily: "var(--fh)", fontSize: 19, color: "var(--cream)", display: "flex", alignItems: "center", gap: 8 }}><Ik i={IconPlus} s={21} style={{ color: "var(--gsoft)" }} />Sipariş Ekle</div>
+                <div style={{ fontSize: 14, color: "var(--muted)" }}>Masa {garsonOrder.masa_no}</div>
               </div>
               <button onClick={() => { setGarsonOrder(null); setGarsonCart([]); }} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 22 }}>✕</button>
             </div>
             {garsonCart.length > 0 && (
               <div style={{ padding: "9px 13px", background: "rgba(58,138,92,.12)", border: "1px solid rgba(58,138,92,.35)", borderRadius: 10, marginBottom: 10, flexShrink: 0, display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, color: "var(--cream)" }}>{garsonCart.map(c => `${c.qty}× ${c.name}`).join(", ")}</span>
+                <span style={{ fontSize: 14, color: "var(--cream)" }}>{garsonCart.map(c => `${c.qty}× ${c.name}`).join(", ")}</span>
                 <span style={{ fontFamily: "var(--fh)", color: "var(--gsoft)" }}>{garsonCart.reduce((s, c) => s + c.price * c.qty, 0)}₺</span>
               </div>
             )}
             <div style={{ flex: 1, overflowY: "auto", marginBottom: 10 }}>
               {Object.entries(menu).filter(([, items]) => items.length > 0).map(([cat, items]) => (
                 <div key={cat} style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 5, letterSpacing: .8 }}>{cat}</div>
+                  <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 5, letterSpacing: .8 }}>{cat}</div>
                   {items.map(item => {
                     const qty = garsonCart.find(c => c.id === item.id)?.qty || 0;
                     return (
                       <div key={item.id} style={{ display: "flex", alignItems: "center", padding: "8px 10px", borderBottom: "1px solid var(--bord)", background: qty > 0 ? "rgba(58,138,92,.05)" : "transparent" }}>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 14, color: "var(--cream)" }}>{item.name}</div>
-                          <div style={{ fontSize: 11, color: "var(--muted)" }}>{item.price}₺</div>
+                          <div style={{ fontSize: 15, color: "var(--cream)" }}>{item.name}</div>
+                          <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{item.price}₺</div>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                           {qty > 0 && <>
-                            <button onClick={() => { const ex = garsonCart.find(c => c.id === item.id); setGarsonCart(p => (!ex || ex.qty <= 1) ? p.filter(c => c.id !== item.id) : p.map(c => c.id === item.id ? { ...c, qty: c.qty - 1 } : c)); }} style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--surf2)", border: "1px solid var(--bord)", color: "var(--muted)", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                            <span style={{ fontSize: 14, color: "var(--cream)", minWidth: 16, textAlign: "center" }}>{qty}</span>
+                            <button onClick={() => { const ex = garsonCart.find(c => c.id === item.id); setGarsonCart(p => (!ex || ex.qty <= 1) ? p.filter(c => c.id !== item.id) : p.map(c => c.id === item.id ? { ...c, qty: c.qty - 1 } : c)); }} style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--surf2)", border: "1px solid var(--bord)", color: "var(--muted)", cursor: "pointer", fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                            <span style={{ fontSize: 15, color: "var(--cream)", minWidth: 16, textAlign: "center" }}>{qty}</span>
                           </>}
                           <button onClick={() => { const ex = garsonCart.find(c => c.id === item.id); setGarsonCart(p => ex ? p.map(c => c.id === item.id ? { ...c, qty: c.qty + 1 } : c) : [...p, { ...item, qty: 1 }]); }} style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", color: "#0b0704", cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>+</button>
                         </div>
@@ -3543,8 +3563,8 @@ const StaffPanel = ({ staff, onLogout }) => {
               ))}
             </div>
             <input value={garsonNote} onChange={e => setGarsonNote(e.target.value)} maxLength={200} placeholder="📝 Mutfağa not (isteğe bağlı)"
-              style={{ width: "100%", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 10, padding: "9px 12px", color: "var(--cream)", fontSize: 14, outline: "none", marginBottom: 10, flexShrink: 0 }} />
-            <button onClick={garsonSubmit} disabled={!garsonCart.length || garsonLoading} style={{ width: "100%", padding: "13px", background: garsonCart.length ? "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)" : "var(--surf2)", border: "none", borderRadius: 13, color: garsonCart.length ? "#0b0704" : "var(--muted)", cursor: garsonCart.length ? "pointer" : "not-allowed", fontFamily: "var(--fh)", fontSize: 15, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              style={{ width: "100%", background: "var(--surf2)", border: "1px solid var(--bord)", borderRadius: 10, padding: "9px 12px", color: "var(--cream)", fontSize: 15, outline: "none", marginBottom: 10, flexShrink: 0 }} />
+            <button onClick={garsonSubmit} disabled={!garsonCart.length || garsonLoading} style={{ width: "100%", padding: "13px", background: garsonCart.length ? "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)" : "var(--surf2)", border: "none", borderRadius: 13, color: garsonCart.length ? "#0b0704" : "var(--muted)", cursor: garsonCart.length ? "pointer" : "not-allowed", fontFamily: "var(--fh)", fontSize: 16, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
               {garsonLoading ? <Spin /> : `🛎 Gönder${garsonCart.length ? " (" + garsonCart.reduce((s, c) => s + c.price * c.qty, 0) + "₺)" : ""}`}
             </button>
           </div>
@@ -3556,10 +3576,10 @@ const StaffPanel = ({ staff, onLogout }) => {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.92)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300 }}>
           <div style={{ background: "var(--surf)", borderRadius: 22, padding: "28px 24px", textAlign: "center", animation: "bounce .4s ease-out", maxWidth: 340 }}>
             <div style={{ fontFamily: "var(--fh)", fontSize: 20, color: "var(--cream)", marginBottom: 4 }}>Masa {qrModal.masa_no}</div>
-            <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 18, wordBreak: "break-all" }}>{qrModal.url}</div>
+            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 18, wordBreak: "break-all" }}>{qrModal.url}</div>
             <img src={qrUrl(qrModal.url)} alt="QR" style={{ width: 240, height: 240, borderRadius: 12, border: "3px solid var(--gold)" }} />
-            <div style={{ fontSize: 12, color: "var(--muted)", margin: "12px 0" }}>Sağ tıkla → Farklı kaydet → Yazıcıdan yazdır</div>
-            <button onClick={() => setQrModal(null)} style={{ width: "100%", padding: "12px", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 12, color: "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 15, fontWeight: 600 }}>Kapat</button>
+            <div style={{ fontSize: 13, color: "var(--muted)", margin: "12px 0" }}>Sağ tıkla → Farklı kaydet → Yazıcıdan yazdır</div>
+            <button onClick={() => setQrModal(null)} style={{ width: "100%", padding: "12px", background: "linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border: "none", borderRadius: 12, color: "#0b0704", cursor: "pointer", fontFamily: "var(--fh)", fontSize: 16, fontWeight: 600 }}>Kapat</button>
           </div>
         </div>
       )}
@@ -3711,6 +3731,12 @@ export default function App() {
   }, [session?.id, sessionStatus]);
 
   const logout = () => { localStorage.removeItem("sg_token"); localStorage.removeItem("sg_staff"); setStaff(null); };
+
+  // Personel ekranları açık temayla çizilir (index.css → body[data-ui="panel"]); müşteri ekranı koyu kalır
+  useLayoutEffect(() => {
+    if (isCustomer) document.body.removeAttribute("data-ui");
+    else document.body.setAttribute("data-ui", "panel");
+  }, [isCustomer]);
 
   // ── RENDER ──────────────────────────────────────────────
 
