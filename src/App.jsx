@@ -2606,10 +2606,8 @@ const AdminPanel = ({ staff, onLogout }) => {
                 {durumBadge(v)}
               </div>
               <div style={{ fontSize: 13.5, color: "var(--cream)", lineHeight: 1.75 }}>
-                <div>🔑 <span style={{ color: v.durum === "lisans_bitti" ? "#e06060" : yakinda(v) ? "var(--gsoft)" : "var(--cream)" }}>{lisansYazi(v)}</span></div>
+                <div>🔑 <span style={{ color: v.durum === "lisans_bitti" ? "#e06060" : yakinda(v) ? "var(--gsoft)" : "var(--cream)" }}>{lisansYazi(v)}</span>{v.masa_limit > 0 && <span style={{ color: "var(--muted)", fontSize: 12.5 }}> · en çok {v.masa_limit} masa</span>}</div>
                 <div>👔 {v.yetkili_ad || "—"} <span style={{ color: "var(--muted)" }}>· {v.yetkili_tel || "telefon yok"}</span></div>
-                <div style={{ color: "var(--muted)", fontSize: 12.5 }}>🪑 {v.masa_n}{v.masa_limit > 0 ? ` / ${v.masa_limit}` : ""} masa · 👥 {v.staff_count} personel · 📋 {v.urun_n} ürün</div>
-                <div style={{ color: "var(--muted)", fontSize: 12.5 }}>📈 Son 30 gün: {v.siparis_30} sipariş · {v.ciro_30}₺{v.son_siparis ? ` · son sipariş ${trTarih(v.son_siparis)}` : " · henüz sipariş yok"}</div>
                 <div style={{ color: "var(--muted)", fontSize: 12.5 }}>🗓 Kayıt: {trTarih(v.created_at)}</div>
                 {v.notlar && <div style={{ color: "#6aaae0", fontSize: 12.5, fontStyle: "italic" }}>📝 {v.notlar}</div>}
               </div>
@@ -2672,7 +2670,7 @@ const AdminPanel = ({ staff, onLogout }) => {
 
             {M.tip === "sil" && <>
               <div style={{ fontSize: 13.5, color: "#e06060", lineHeight: 1.6, marginBottom: 10 }}>
-                Bu işlem <strong>geri alınamaz</strong>. İşletmenin personeli, masaları ve QR kodları, menüsü, görselleri ve tüm sipariş geçmişi ({M.v.siparis_n} sipariş) kalıcı olarak silinir. Veriyi korumak istiyorsanız silmek yerine askıya alın.
+                Bu işlem <strong>geri alınamaz</strong>. İşletmenin personeli, masaları ve QR kodları, menüsü, görselleri ve tüm sipariş geçmişi kalıcı olarak silinir. Veriyi korumak istiyorsanız silmek yerine askıya alın.
               </div>
               <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 5 }}>Onaylamak için işletme adını yazın: <strong style={{ color: "var(--cream)" }}>{M.v.ad}</strong></div>
               <input value={M.onay} onChange={e => setModal({ ...M, onay: e.target.value })} placeholder={M.v.ad} style={inp} autoFocus />
