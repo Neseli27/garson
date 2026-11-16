@@ -15,6 +15,11 @@ const ETIKET = { fontSize: 13, fontWeight: 700, letterSpacing: .6, color: "var(-
 
 const API = import.meta.env.VITE_API_BASE || "https://garson.testokulu.com/garson-api";
 
+// Yapay zekâ: müşteri ekranındaki Garson sohbeti ve kahve falı, sipariş hazırlanıyor/hazır
+// mesajları ile memnuniyet sorusu (chat.php → Claude API), personeldeki "Mekan Hakkında" metni.
+// Murat'ın kararı (16 Kasım 2026): şimdilik kapalı. Kod duruyor; açmak için true yapın.
+const YAPAY_ZEKA = false;
+
 /* ── API ─────────────────────────────────────────────────── */
 // 401 logout flag — paralel request'lerde tek sefer tetiklensin
 let _authFailed = false;
@@ -636,7 +641,9 @@ const CustomerChat = ({ session, venueAd }) => {
           setMsgs(p => [...p, { role: "assistant", content: text, id: Date.now() + Math.random(), time: ts(), auto: true }]);
           playBeep(o.status === "iptal" ? 330 : 660, .25, o.status === "iptal" ? 1 : 2);
         }
-        if (prev && prev !== o.status && (o.status==="hazırlanıyor" || o.status==="hazır")) {
+        // Yapay zekâ kapalıyken: sipariş hazır olunca yalnızca sesli uyarı (durum Siparişim'de görünür)
+        if (!YAPAY_ZEKA && prev && prev !== o.status && o.status === "hazır") playBeep(880, .25, 2);
+        if (YAPAY_ZEKA && prev && prev !== o.status && (o.status==="hazırlanıyor" || o.status==="hazır")) {
           try {
             const res = await post("chat.php", { session_id:session.id, mode:"status_notify", status:o.status, urunler:o.urunler, messages:[] });
             const text = res.content?.[0]?.text;
@@ -751,7 +758,7 @@ const CustomerChat = ({ session, venueAd }) => {
       <div style={{ padding: "7px 12px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid var(--bord)", background: "rgba(22,14,8,.95)", flexShrink: 0 }}>
         <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--gold) 0%,#6b3d10 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>🍽️</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--cream)", lineHeight:1 }}>Garson AI <span style={{fontSize:11,color:"var(--muted)",fontStyle:"italic"}}>{venueAd} · Masa {session.masa_no}</span></div>
+          <div style={{ fontFamily: "var(--fh)", fontSize: 13, color: "var(--cream)", lineHeight:1 }}>{YAPAY_ZEKA ? "Garson AI " : `${venueAd} `}<span style={{fontSize:11,color:"var(--muted)",fontStyle:"italic"}}>{YAPAY_ZEKA ? `${venueAd} · ` : "· "}Masa {session.masa_no}</span></div>
         </div>
         {speaking && (
           <button onClick={() => { window.speechSynthesis.cancel(); setSpeaking(false); }} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(192,64,64,.18)", border: "1px solid rgba(192,64,64,.4)", borderRadius: 20, padding: "5px 10px", cursor: "pointer", color: "#e06060", fontSize: 12 }}>
@@ -762,7 +769,7 @@ const CustomerChat = ({ session, venueAd }) => {
 
       {/* Tabs */}
       <div style={{ display: "flex", borderBottom: "1px solid var(--bord)", background: "rgba(22,14,8,.9)", flexShrink: 0 }}>
-        {[{ id: "chat", label: "💬 Garson" }, { id: "menu", label: `📋 Menü${cartCount > 0 ? ` (${cartCount})` : ""}` }, { id: "hesap", label: `🧾 Siparişim${tableOrders.length > 0 ? " ●" : ""}` }].map(({ id, label }) => (
+        {[...(YAPAY_ZEKA ? [{ id: "chat", label: "💬 Garson" }] : []), { id: "menu", label: `📋 Menü${cartCount > 0 ? ` (${cartCount})` : ""}` }, { id: "hesap", label: `🧾 Siparişim${tableOrders.length > 0 ? " ●" : ""}` }].map(({ id, label }) => (
           <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "7px 0", background: "none", border: "none", cursor: "pointer", fontSize: 12, color: tab === id ? "var(--gsoft)" : "var(--muted)", borderBottom: tab === id ? "2px solid var(--gold)" : "2px solid transparent", transition: "all .2s" }}>{label}</button>
         ))}
       </div>
@@ -770,7 +777,7 @@ const CustomerChat = ({ session, venueAd }) => {
       <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
         {tab === "menu" && <MenuView menu={menu} specials={specials} cart={cart} onAdd={addToCart} onRemove={removeFromCart} onOrder={submitCart} orderLoading={orderLoading} note={cartNote} onNote={setCartNote} />}
         {tab === "hesap" && <HesapView session={session} tableOrders={tableOrders} venueId={session.venue_id} onCallWaiter={callWaiter} />}
-        {tab === "chat" && (
+        {YAPAY_ZEKA && tab === "chat" && (
           <div style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
             <div style={{ flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", padding: "14px 13px 8px" }}>
               {msgs.map((m, i) => {
@@ -1971,12 +1978,15 @@ const MekanBilgiEditor = ({ venueId }) => {
         busy={upTesekkur} setBusy={setUpTesekkur} fileRef={tesekkurRef}
       />
 
+      {/* Yalnızca yapay zekâ sohbetinde kullanılır; kapalıyken gizli, kayıtlı metin korunur */}
+      {YAPAY_ZEKA && <>
       <div style={{ height:1, background:"var(--bord)", margin:"10px 0 14px" }} />
       <div style={{ fontFamily:"var(--fh)", fontSize:19, color:"var(--cream)", marginBottom:8, display:"flex", alignItems:"center", gap:8 }}><Ik i={IconBuildingStore} s={21} style={{ color:"var(--gsoft)" }} />Mekan Hakkında <span style={{ fontFamily:"var(--fb)", fontSize:13.5, color:"var(--muted)" }}>(yapay zekâ için)</span></div>
       <textarea value={bilgi} onChange={e=>setBilgi(e.target.value)}
         placeholder="Mekanın hikayesi, mutfak tarzı, özellikler, ödüller..."
         rows={3} style={{ width:"100%", background:"var(--surf)", border:"1px solid var(--bord)", borderRadius:9, padding:"10px 13px", color:"var(--cream)", fontSize:14, outline:"none", resize:"vertical", lineHeight:1.6 }}
       />
+      </>}
       {saved && <div style={{ fontSize:13, color:"var(--c-green)", marginTop:6 }}>✅ Kaydedildi</div>}
       <button onClick={save} style={{ width:"100%", padding:"11px", marginTop:10, background:"linear-gradient(135deg,var(--gold) 0%,#8b5e2a 100%)", border:"none", borderRadius:10, color:"#0b0704", cursor:"pointer", fontFamily:"var(--fh)", fontSize:14, fontWeight:600 }}>Kaydet</button>
     </div>
